@@ -23,10 +23,7 @@ loop:
 	
 alarm:
 	cbi PORTB,3	; Alarm has been triggered - turn off the green LED
-	ldi R22,5	; Basically a random guess for a debounce/hold timer
-	b1:	rcall buzz
-		dec R22
-		brne b1
+	rcall buzz	; Play a cycle of the buzz tone
 	sbis PINB,0	; Skip next instruction if PB0 is still high
 	rjmp alarm	; If PB0 is still high, just loop back on alarm (hopefully this doesn't mess up the return register)
 	ret
