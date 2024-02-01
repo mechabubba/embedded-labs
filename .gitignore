@@ -1,0 +1,8 @@
+# microchip specific files
+**/Debug/ # build fragments
+**/.vs/   # user-specific visual studio project settings
+
+# other garbage
+.DS_STORE
+Thumbs.db
+**.tmp
