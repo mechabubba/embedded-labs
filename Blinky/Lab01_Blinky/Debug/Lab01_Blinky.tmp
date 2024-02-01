@@ -1,0 +1,38 @@
+<ASSEMBLER_INFO>
+ <VERSION>2.2.8</VERSION>
+ <DEVICE>"ATtiny45"</DEVICE>
+ <WORKING_DIR>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\Debug</WORKING_DIR>
+ <INCLUDE_PATH>
+  <DIR>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATtiny_DFP\1.10.348\avrasm\inc</DIR>
+  <DIR>C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avrassembler\Include</DIR>
+  <DIR></DIR>
+ </INCLUDE_PATH>
+ <SOURCE_FILE>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\main.asm</SOURCE_FILE>
+ <INCLUDED_FILES>
+  <FILE>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATtiny_DFP\1.10.348\avrasm\inc\tn45def.inc</FILE>
+ </INCLUDED_FILES>
+ <OBJECT_FILES>
+  <FILE>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\Debug\Lab01_Blinky.obj</FILE>
+ </OBJECT_FILES>
+ <HEX_FILES>
+  <FILE>Lab01_Blinky.hex</FILE>
+ </HEX_FILES>
+ <OUTPUT_FILES>
+  <FILE>Lab01_Blinky.map</FILE>
+  <FILE>Lab01_Blinky.lss</FILE>
+ </OUTPUT_FILES>
+ <LABELS>
+  <more><FILE>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\main.asm</FILE><LINE>16</LINE></more>
+  <loop><FILE>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\main.asm</FILE><LINE>25</LINE></loop>
+  <delay_blue><FILE>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\main.asm</FILE><LINE>58</LINE></delay_blue>
+  <delay_white><FILE>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\main.asm</FILE><LINE>38</LINE></delay_white>
+  <w1><FILE>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\main.asm</FILE><LINE>40</LINE></w1>
+  <w2><FILE>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\main.asm</FILE><LINE>41</LINE></w2>
+  <w3><FILE>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\main.asm</FILE><LINE>43</LINE></w3>
+  <w4><FILE>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\main.asm</FILE><LINE>51</LINE></w4>
+  <b1><FILE>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\main.asm</FILE><LINE>60</LINE></b1>
+  <b2><FILE>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\main.asm</FILE><LINE>61</LINE></b2>
+  <b3><FILE>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\main.asm</FILE><LINE>63</LINE></b3>
+  <b4><FILE>C:\Users\jared\Documents\Microchip Studio\7.0\Blinky\Lab01_Blinky\main.asm</FILE><LINE>71</LINE></b4>
+ </LABELS>
+</ASSEMBLER_INFO>
