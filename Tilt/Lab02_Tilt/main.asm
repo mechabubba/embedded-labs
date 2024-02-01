@@ -35,11 +35,13 @@ buzz:	; does 1 cycle of the speaker tone (This probably could be incorporated in
 	rcall delay
 	ret
 
-delay:	; currently set to give roughly 800 Hz
-	ldi R20,255	; R20 is a loop counter
-	d1:	ldi R21,50
+delay:	; Set to give roughly 205 kHz
+	ldi R20,6		; R20 is a loop counter
+	d1:	ldi R21,109
 		d2:	dec R21
 			brne d2
 		dec R20
 		brne d1	; Return to d1 until R20 is 0
 	ret
+
+.exit
