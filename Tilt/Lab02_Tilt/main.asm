@@ -16,11 +16,19 @@ start:			; Initializes the pin states
 	rjmp loop	; Enter the main process loop
 
 loop:
+    rcall debounce ; first, debounce the input
 	sbis PINB,0	; Skip next instruction if PB0 is high
 	rcall alarm	; PB0 is low -> The tilt sensor is not upright
 	sbi PORTB,3	; Set the green LED on
 	rjmp loop
-	
+
+; simple debounce routine; check input every x ms.
+debounce:
+    ldi R22,255
+    dbt: dec R22
+         brne dbt
+    ret
+
 alarm:
 	cbi PORTB,3	; Alarm has been triggered - turn off the green LED
 	rcall buzz	; Play a cycle of the buzz tone
