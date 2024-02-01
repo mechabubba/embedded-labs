@@ -1,0 +1,33 @@
+<ASSEMBLER_INFO>
+ <VERSION>2.2.8</VERSION>
+ <DEVICE>"ATtiny45"</DEVICE>
+ <WORKING_DIR>C:\Users\jared\Documents\GitHub\embedded-labs\Tilt\Lab02_Tilt\Debug</WORKING_DIR>
+ <INCLUDE_PATH>
+  <DIR>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATtiny_DFP\1.10.348\avrasm\inc</DIR>
+  <DIR>C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avrassembler\Include</DIR>
+  <DIR></DIR>
+ </INCLUDE_PATH>
+ <SOURCE_FILE>C:\Users\jared\Documents\GitHub\embedded-labs\Tilt\Lab02_Tilt\main.asm</SOURCE_FILE>
+ <INCLUDED_FILES>
+  <FILE>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATtiny_DFP\1.10.348\avrasm\inc\tn45def.inc</FILE>
+ </INCLUDED_FILES>
+ <OBJECT_FILES>
+  <FILE>C:\Users\jared\Documents\GitHub\embedded-labs\Tilt\Lab02_Tilt\Debug\Lab02_Tilt.obj</FILE>
+ </OBJECT_FILES>
+ <HEX_FILES>
+  <FILE>Lab02_Tilt.hex</FILE>
+ </HEX_FILES>
+ <OUTPUT_FILES>
+  <FILE>Lab02_Tilt.map</FILE>
+  <FILE>Lab02_Tilt.lss</FILE>
+ </OUTPUT_FILES>
+ <LABELS>
+  <start><FILE>C:\Users\jared\Documents\GitHub\embedded-labs\Tilt\Lab02_Tilt\main.asm</FILE><LINE>12</LINE></start>
+  <loop><FILE>C:\Users\jared\Documents\GitHub\embedded-labs\Tilt\Lab02_Tilt\main.asm</FILE><LINE>18</LINE></loop>
+  <alarm><FILE>C:\Users\jared\Documents\GitHub\embedded-labs\Tilt\Lab02_Tilt\main.asm</FILE><LINE>24</LINE></alarm>
+  <buzz><FILE>C:\Users\jared\Documents\GitHub\embedded-labs\Tilt\Lab02_Tilt\main.asm</FILE><LINE>31</LINE></buzz>
+  <delay><FILE>C:\Users\jared\Documents\GitHub\embedded-labs\Tilt\Lab02_Tilt\main.asm</FILE><LINE>38</LINE></delay>
+  <d1><FILE>C:\Users\jared\Documents\GitHub\embedded-labs\Tilt\Lab02_Tilt\main.asm</FILE><LINE>40</LINE></d1>
+  <d2><FILE>C:\Users\jared\Documents\GitHub\embedded-labs\Tilt\Lab02_Tilt\main.asm</FILE><LINE>41</LINE></d2>
+ </LABELS>
+</ASSEMBLER_INFO>

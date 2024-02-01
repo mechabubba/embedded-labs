@@ -1,10 +1,10 @@
 
-AVRASM ver. 2.2.8  C:\Users\jmulder1\Documents\Atmel Studio\7.0\Tilt\Lab02_Tilt\main.asm Fri Jan 26 10:09:02 2024
+AVRASM ver. 2.2.8  C:\Users\jared\Documents\GitHub\embedded-labs\Tilt\Lab02_Tilt\main.asm Thu Feb 01 13:39:17 2024
 
 [builtin](2): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATtiny_DFP\1.10.348\avrasm\inc\tn45def.inc'
-C:\Users\jmulder1\Documents\Atmel Studio\7.0\Tilt\Lab02_Tilt\main.asm(8): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATtiny_DFP\1.10.348\avrasm\inc\tn45def.inc'
+C:\Users\jared\Documents\GitHub\embedded-labs\Tilt\Lab02_Tilt\main.asm(8): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATtiny_DFP\1.10.348\avrasm\inc\tn45def.inc'
 [builtin](2): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATtiny_DFP\1.10.348\avrasm\inc\tn45def.inc'
-C:\Users\jmulder1\Documents\Atmel Studio\7.0\Tilt\Lab02_Tilt\main.asm(8): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATtiny_DFP\1.10.348\avrasm\inc\tn45def.inc'
+C:\Users\jared\Documents\GitHub\embedded-labs\Tilt\Lab02_Tilt\main.asm(8): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATtiny_DFP\1.10.348\avrasm\inc\tn45def.inc'
                                  
                                  ;
                                  
@@ -747,38 +747,40 @@ C:\Users\jmulder1\Documents\Atmel Studio\7.0\Tilt\Lab02_Tilt\main.asm(8): Includ
                                  .org 0
                                  
                                  start:			; Initializes the pin states
-000000 98b8                          cbi DDRB,0	; Set PB0 to input
-000001 9abb                      	sbi DDRB,3	; Set PB3 to output
-000002 9abc                      	sbi DDRB,4	; Set PB4 to output
+000000 98b8                          cbi DDRB,0	; Set PB0 to input - PB0 is the tilt sensor
+000001 9abb                      	sbi DDRB,3	; Set PB3 to output - PB3 is the green LED
+000002 9abc                      	sbi DDRB,4	; Set PB4 to output - PB4 is the speaker
 000003 c000                      	rjmp loop	; Enter the main process loop
                                  
                                  loop:
 000004 9bb0                      	sbis PINB,0	; Skip next instruction if PB0 is high
 000005 d002                      	rcall alarm	; PB0 is low -> The tilt sensor is not upright
-                                 
-000006 0000                      	nop
+000006 9ac3                      	sbi PORTB,3	; Set the green LED on
 000007 cffc                      	rjmp loop
                                  	
                                  alarm:
-000008 d001                      	rcall buzz
-000009 9508                      	ret
+000008 98c3                      	cbi PORTB,3	; Alarm has been triggered - turn off the green LED
+000009 d003                      	rcall buzz	; Play a cycle of the buzz tone
+00000a 9bb0                      	sbis PINB,0	; Skip next instruction if PB0 is still high
+00000b cffc                      	rjmp alarm	; If PB0 is still high, just loop back on alarm (hopefully this doesn't mess up the return register)
+00000c 9508                      	ret
                                  
-                                 buzz:
-00000a 98c4                      	cbi PORTB,4
-00000b d003                      	rcall delay
-00000c 9ac4                      	sbi PORTB,4
-00000d d001                      	rcall delay
-00000e 9508                      	ret
+                                 buzz:	; does 1 cycle of the speaker tone (This probably could be incorporated into the alarm subroutine)
+00000d 98c4                      	cbi PORTB,4
+00000e d003                      	rcall delay
+00000f 9ac4                      	sbi PORTB,4
+000010 d001                      	rcall delay
+000011 9508                      	ret
                                  
-                                 delay:
-00000f ef4f                      	ldi R20,255	; R20 is a loop counter
-                                 	d1:
-000010 e159                      		ldi R21,25
-                                 		d2:
-000011 955a                      			dec R21
-000012 f7f1                      			brne d2
-000013 954a                      		dec R20
-000014 f7d9                      		brne d1	; Return to d1 until R20 is 0
+                                 delay:	; Set to give roughly 205 kHz
+000012 e046                      	ldi R20,6		; R20 is a loop counter
+000013 e65d                      	d1:	ldi R21,109
+000014 955a                      		d2:	dec R21
+000015 f7f1                      			brne d2
+000016 954a                      		dec R20
+000017 f7d9                      		brne d1	; Return to d1 until R20 is 0
+000018 9508                      	ret
+                                 
 
 
 RESOURCE USE INFORMATION
@@ -809,25 +811,25 @@ andi  :   0 asr   :   0 bclr  :   0 bld   :   0 brbc  :   0 brbs  :   0
 brcc  :   0 brcs  :   0 break :   0 breq  :   0 brge  :   0 brhc  :   0 
 brhs  :   0 brid  :   0 brie  :   0 brlo  :   0 brlt  :   0 brmi  :   0 
 brne  :   2 brpl  :   0 brsh  :   0 brtc  :   0 brts  :   0 brvc  :   0 
-brvs  :   0 bset  :   0 bst   :   0 cbi   :   2 cbr   :   0 clc   :   0 
+brvs  :   0 bset  :   0 bst   :   0 cbi   :   3 cbr   :   0 clc   :   0 
 clh   :   0 cli   :   0 cln   :   0 clr   :   0 cls   :   0 clt   :   0 
 clv   :   0 clz   :   0 com   :   0 cp    :   0 cpc   :   0 cpi   :   0 
 cpse  :   0 dec   :   2 eor   :   0 icall :   0 ijmp  :   0 in    :   0 
 inc   :   0 ld    :   0 ldd   :   0 ldi   :   2 lds   :   0 lpm   :   0 
-lsl   :   0 lsr   :   0 mov   :   0 movw  :   0 neg   :   0 nop   :   1 
+lsl   :   0 lsr   :   0 mov   :   0 movw  :   0 neg   :   0 nop   :   0 
 or    :   0 ori   :   0 out   :   0 pop   :   0 push  :   0 rcall :   4 
-ret   :   3 reti  :   0 rjmp  :   2 rol   :   0 ror   :   0 sbc   :   0 
-sbci  :   0 sbi   :   3 sbic  :   0 sbis  :   1 sbiw  :   0 sbr   :   0 
+ret   :   3 reti  :   0 rjmp  :   3 rol   :   0 ror   :   0 sbc   :   0 
+sbci  :   0 sbi   :   4 sbic  :   0 sbis  :   2 sbiw  :   0 sbr   :   0 
 sbrc  :   0 sbrs  :   0 sec   :   0 seh   :   0 sei   :   0 sen   :   0 
 ser   :   0 ses   :   0 set   :   0 sev   :   0 sez   :   0 sleep :   0 
 spm   :   0 st    :   0 std   :   0 sts   :   0 sub   :   0 subi  :   0 
 swap  :   0 tst   :   0 wdr   :   0 
-Instructions used: 10 out of 105 (9.5%)
+Instructions used: 9 out of 105 (8.6%)
 
 "ATtiny45" memory use summary [bytes]:
 Segment   Begin    End      Code   Data   Used    Size   Use%
 ---------------------------------------------------------------
-[.cseg] 0x000000 0x00002c     44      0     44    4096   1.1%
+[.cseg] 0x000000 0x000032     50      0     50    4096   1.2%
 [.dseg] 0x000060 0x000060      0      0      0     256   0.0%
 [.eseg] 0x000000 0x000000      0      0      0     256   0.0%
 

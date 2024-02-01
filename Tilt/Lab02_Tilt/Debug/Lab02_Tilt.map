@@ -1,5 +1,5 @@
 
-AVRASM ver. 2.2.8  C:\Users\jmulder1\Documents\Atmel Studio\7.0\Tilt\Lab02_Tilt\main.asm Fri Jan 26 10:09:02 2024
+AVRASM ver. 2.2.8  C:\Users\jared\Documents\GitHub\embedded-labs\Tilt\Lab02_Tilt\main.asm Thu Feb 01 13:39:17 2024
 
 
 EQU  SIGNATURE_000 0000001e
@@ -442,7 +442,7 @@ EQU  INT_VECTORS_SIZE 0000000f
 CSEG start        00000000
 CSEG loop         00000004
 CSEG alarm        00000008
-CSEG buzz         0000000a
-CSEG delay        0000000f
-CSEG d1           00000010
-CSEG d2           00000011
+CSEG buzz         0000000d
+CSEG delay        00000012
+CSEG d1           00000013
+CSEG d2           00000014
