@@ -16,36 +16,37 @@ start:			; Initializes the pin states
 	rjmp loop	; Enter the main process loop
 
 loop:
-    rcall debounce ; first, debounce the input
 	sbis PINB,0	; Skip next instruction if PB0 is high
-	rcall alarm	; PB0 is low -> The tilt sensor is not upright
-	sbi PORTB,3	; Set the green LED on
+	rcall alarm_on	; PB0 is low -> The tilt sensor is not upright
+	sbic PINB,0	; Skip next instruction if PB0 is high
+	rcall alarm_off	; PB0 is high -> The tilt sensor is upright
 	rjmp loop
 
-; simple debounce routine; check input every x ms.
-debounce:
-    ldi R22,255
-    dbt: dec R22
-         brne dbt
-    ret
-
-alarm:
-	cbi PORTB,3	; Alarm has been triggered - turn off the green LED
-	rcall buzz	; Play a cycle of the buzz tone
-	sbis PINB,0	; Skip next instruction if PB0 is still high
-	rjmp alarm	; If PB0 is still high, just loop back on alarm (hopefully this doesn't mess up the return register)
+alarm_on:	; 5 cycles of the on tone for the alarm being on, before checking again.
+	cbi PORTB,3	; Clear the green LED pin
+	ldi R22,2
+	a1:	cbi PORTB,4
+		rcall delay
+		sbi PORTB,4
+		rcall delay
+		dec R22			; These 2 operations will push the time off by a very small amount
+		brne a1
 	ret
 
-buzz:	; does 1 cycle of the speaker tone (This probably could be incorporated into the alarm subroutine)
-	cbi PORTB,4
-	rcall delay
-	sbi PORTB,4
-	rcall delay
+alarm_off:	; Complement of the alarm_on subroutine, does not activate speakers but takes the same amount of time.
+	sbi PORTB,3	; Set the green LED pin
+	ldi R22,2
+	b1:	nop				; NOP replaces the speaker pin sbi/cbi so that the timing is the same
+		rcall delay
+		nop
+		rcall delay
+		dec R22			;These 2 operations will push the time off by a very small amount
+		brne b1
 	ret
 
 delay:	; Set to give roughly 205 kHz
 	ldi R20,6		; R20 is a loop counter
-	d1:	ldi R21,109
+	d1:	ldi R21,107
 		d2:	dec R21
 			brne d2
 		dec R20
