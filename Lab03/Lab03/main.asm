@@ -87,10 +87,13 @@ loop:
 	rcall debounce ; first debounce input
 	; based on the result of this (R20) we will set the state accordingly.
 	cpi R16,0
-	brie state0 ; If R16 = 0, go to state0.
+	breq state0 ; If R16 = 0, go to state0.
 	cpi R16,1
-	brie state1 ; If R16 = 1, go to state1.
-	rjmp write_segments ; Otherwise head straight to the segment encoder
+	breq state1 ; If R16 = 1, go to state1.
+	cpi R20,2
+	brne write_segments ; If button is not just unpressed, go to encoder.
+	ldi R16,0 ; Set state back to 0 then go to encoder
+	rjmp write_segments
 
 debounce:
 	; reimplemented from class code.
@@ -102,9 +105,9 @@ debounce:
 
 	; the loop.
 	_db:
-		sbic PORTB,3	; if PB3 is clear (button unpressed)...
+		sbic PINB,3	; if PB3 is clear (button unpressed)...
 		inc	R21			; inc it
-		sbis PORTB,3	; if PB3 is set (button pressed)...
+		sbis PINB,3	; if PB3 is set (button pressed)...
 		inc R22			; inc it
 
 		dec R23			; loop logic over. dec index
@@ -113,22 +116,28 @@ debounce:
 
 	; case *after* loop.
 	_db_check_results:
+		lsl R20				; shift R20 once to the left so the second bit stores the stat
 		cp R22, R21
 		brge _db_done_le	; if R22 >= R21 (if more 1s than 0s), buttons assumed to be pressed.
-		ldi R20, 1			; set 1 and get outta here
+		sbr R20, 1			; set 1 and get outta here
 		rjmp _db_done
 
 		_db_done_le:
-			ldi R20, 0		; otherwise, assumed to be not pressed.
+			cbr R20,1		; otherwise, assumed to be not pressed.
 			rjmp _db_done
 
 	; we're done.
 	_db_done:
 		ret ; able to ret bc of rcall
+; R20 stores the state of the button - 0 means the button is currently unpressed, 1 means the button was just pressed.
+; 2 means the button was just unpressed, and 3 means the button is currently pressed.
 
 ; state zero clears the counter and writes to the display.
 state0:
 	clr R28
+	cpi R20,2
+	brne write_segments ; If R20 is not 2, then don't change the state
+	ldi R16,1 ; Switch to state 1
 	rjmp write_segments
 
 ; state 1 
@@ -141,6 +150,11 @@ state1:
 	brlo write_segments ; Goto write_segments if we have not exceeded 9 on the lower digit
 	andi R28,0xF0 ; Clear the lower digit to 0
 	subi R28,0xF0 ; Add 1 to the upper nibble by subtracting -16, the fact that there is no addi is really stupid
+	cpi R20,1 ; Is button just pressed?
+	breq s2 ; Set to state 2
+	cpi R28,0x10 
+	brlo write_segments ; Skip if less than 100
+s2:	ldi R16,2 ; Switch to state 2
 	rjmp write_segments
 
 write_overflow:
