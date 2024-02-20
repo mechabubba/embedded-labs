@@ -7,6 +7,8 @@
 
 .include "tn45def.inc"
 
+; macro small macro to write 7seg digits to a register.
+; @0 is register compared, @1 is register written to.
 .macro segwrite
 	cpi @0,0 ; digit=0
 	brne d0
@@ -59,17 +61,53 @@ init:
 	sbi DDRB,4
 
 loop:
-	; TODO: Add button debounce code here
+	rcall debounce ; first debounce input
+	; based on the result of this (R20) we will set the state accordingly.
 	cpi R16,0
 	brie state0 ; If R16 = 0, go to state0.
 	cpi R16,1
 	brie state1 ; If R16 = 1, go to state1.
 	rjmp write_segments ; Otherwise head straight to the segment encoder
 
+debounce:
+	; reimplemented from class code...
+	; r21 is num of 0s, r22 is num of 1s. r23 is loop index
+	; r20 is 1 if buttons pressed, 0 otherwise.
+	clr R21 ; clear some regs beforehand.
+	clr R22
+	ldi R23, (10 - 1)
+
+	; the loop.
+	_db:
+		sbic PORTB,3	; if PB3 is clear (button unpressed)...
+		inc	R21			; inc it
+		sbis PORTB,3	; if PB3 is set (button pressed)...
+		inc R22			; inc it
+
+		dec R23			; loop logic over. dec index
+		cpi R23, 0		; compare index to 0...
+		breq _db_check_results	; ...and branch out if we need to.
+
+	; case *after* loop.
+	_db_check_results:
+		cp R22, R21
+		brge _db_done_le	; if R22 >= R21 (if more 1s than 0s), buttons assumed to be pressed.
+		ldi R20, 1			; set 1 and get outta here
+		rjmp _db_done
+
+		_db_done_le:
+			ldi R20, 0		; otherwise, assumed to be not pressed.
+			rjmp _db_done
+
+	_db_done:
+		ret ; able to ret bc of rcall
+
+; state zero clears the counter and writes to the display.
 state0:
 	clr R28
 	rjmp write_segments
 
+; state 1 
 state1:
 	inc R28
 	mov R17,R28
@@ -100,4 +138,9 @@ write_segments: ; Converts the number in R28 into the 7-segment encodings for R2
 
 write_IO:
 	; SEND TO PINS HERE
+	; we will need to do the clock manually here. bits shifted in lsb to msb, R29 first, then R30.
+	.macro send_bit
+		
+	.endmacro
 	rjmp loop
+
