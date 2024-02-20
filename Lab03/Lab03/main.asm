@@ -43,6 +43,29 @@ d8:	cpi @0,9 ; digit=9
 d9:
 .endmacro
 
+; macro for sending bit to SDI.
+; we will need to do the clock manually here. bits shifted in lsb to msb, R29 first, then R30.
+.macro send_bit
+	; send first bit of byte.
+	sbrc @0,1
+	cbi PORTB,4
+	sbrs @0,1
+	sbi PORTB,4
+	sbi PORTB,2	; clock in
+	cbi PORTB,2	; clock out
+.endmacro
+	
+.macro send_byte
+	; shift byte 8 times, use send_bit macro.
+	ldi R23, (8 - 1)
+	_wio_loop:
+		send_bit @0
+		lsl @0
+		dec R23
+		cpi R23, 0
+		breq _wio_loop
+.endmacro
+
 .cseg
 .org 0
 
@@ -70,7 +93,7 @@ loop:
 	rjmp write_segments ; Otherwise head straight to the segment encoder
 
 debounce:
-	; reimplemented from class code...
+	; reimplemented from class code.
 	; r21 is num of 0s, r22 is num of 1s. r23 is loop index
 	; r20 is 1 if buttons pressed, 0 otherwise.
 	clr R21 ; clear some regs beforehand.
@@ -99,6 +122,7 @@ debounce:
 			ldi R20, 0		; otherwise, assumed to be not pressed.
 			rjmp _db_done
 
+	; we're done.
 	_db_done:
 		ret ; able to ret bc of rcall
 
@@ -108,6 +132,7 @@ state0:
 	rjmp write_segments
 
 ; state 1 
+; note: r28 stores both digits as each respective nibble. 
 state1:
 	inc R28
 	mov R17,R28
@@ -136,11 +161,12 @@ write_segments: ; Converts the number in R28 into the 7-segment encodings for R2
 	segwrite R17,R30 ; Write the right digit
 	rjmp write_IO
 
+; write to io. send bits from r29 and r30. uses a handy macro defined above.
 write_IO:
-	; SEND TO PINS HERE
-	; we will need to do the clock manually here. bits shifted in lsb to msb, R29 first, then R30.
-	.macro send_bit
-		
-	.endmacro
+	sbi PORTB,0	; pull OE high
+	send_byte R29	; send 10s byte
+	send_byte R30	; send 1s byte
+	sbi PORTB,1	; pulse latch
+	cbi PORTB,1
+	cbi PORTB,0	; pull OE low
 	rjmp loop
-
