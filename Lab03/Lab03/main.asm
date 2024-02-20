@@ -58,12 +58,12 @@ d9:
 .macro send_byte
 	; shift byte 8 times, use send_bit macro.
 	ldi R23, (8 - 1)
-	_wio_loop:
+	_sb_shift_loop:
 		send_bit @0
 		lsl @0
 		dec R23
 		cpi R23, 0
-		breq _wio_loop
+		breq _sb_shift_loop
 .endmacro
 
 .cseg
