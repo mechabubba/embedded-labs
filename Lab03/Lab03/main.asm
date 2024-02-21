@@ -55,7 +55,7 @@ d9:
 		sbi PORTB,4
 		sbi PORTB,2	; clock in
 		cbi PORTB,2	; clock out
-		lsl @0 ; logical shift left so the next bit is the rightmost
+		lsr @0 ; logical shift left so the next bit is the rightmost
 		dec R23 ; Decrement the loop counter
 		brne _sb_shift_loop
 .endmacro
@@ -108,6 +108,7 @@ debounce:
 		brne _db
 
 		lsl R20				; shift R20 once to the left so the second bit stores the stat
+		andi R20,0x3		; Make sure that the upper 6 bits are not affected.
 		cp R22, R21
 		brge _db_done_le	; if R22 >= R21 (if more 1s than 0s), buttons assumed to be pressed.
 		sbr R20, 1			; set 1 and get outta here

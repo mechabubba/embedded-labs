@@ -1,5 +1,5 @@
 
-AVRASM ver. 2.2.8  C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm Wed Feb 21 17:07:23 2024
+AVRASM ver. 2.2.8  C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm Wed Feb 21 17:38:03 2024
 
 [builtin](2): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\Atmel\ATtiny_DFP\2.0.368\avrasm\inc\tn45def.inc'
 C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm(8): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\Atmel\ATtiny_DFP\2.0.368\avrasm\inc\tn45def.inc'
@@ -792,7 +792,7 @@ C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm(8): Including
                                  		sbi PORTB,4
                                  		sbi PORTB,2	; clock in
                                  		cbi PORTB,2	; clock out
-                                 		lsl @0 ; logical shift left so the next bit is the rightmost
+                                 		lsr @0 ; logical shift left so the next bit is the rightmost
                                  		dec R23 ; Decrement the loop counter
                                  		brne _sb_shift_loop
                                  .endmacro
@@ -842,12 +842,10 @@ C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm(8): Including
 000014 9563                      		inc R22			; inc it
                                  
 000015 957a                      		dec R23			; loop logic over. dec index
-000016 3070                      		cpi R23, 0		; compare index to 0...
-000017 f001                      		breq _db_check_results	; ...and branch out if we need to.
+000016 f7d1                      		brne _db
                                  
-                                 	; case *after* loop.
-                                 	_db_check_results:
-000018 0f44                      		lsl R20				; shift R20 once to the left so the second bit stores the stat
+000017 0f44                      		lsl R20				; shift R20 once to the left so the second bit stores the stat
+000018 7043                      		andi R20,0x3		; Make sure that the upper 6 bits are not affected.
 000019 1765                      		cp R22, R21
 00001a f414                      		brge _db_done_le	; if R22 >= R21 (if more 1s than 0s), buttons assumed to be pressed.
 00001b 6041                      		sbr R20, 1			; set 1 and get outta here
@@ -974,7 +972,7 @@ C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm(8): Including
 00007f 9ac4
 000080 9ac2
 000081 98c2
-000082 0fdd
+000082 95d6
 000083 957a
 000084 f7b9                      	send_byte R29	; send 10s byte
 000085 e078
@@ -984,7 +982,7 @@ C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm(8): Including
 000089 9ac4
 00008a 9ac2
 00008b 98c2
-00008c 0fee
+00008c 95e6
 00008d 957a
 00008e f7b9                      	send_byte R30	; send 1s byte
 00008f 9ac1                      	sbi PORTB,1	; pulse latch
@@ -1010,23 +1008,23 @@ counted separately from r26..r31 here.
 "ATtiny45" register use summary:
 x  :   0 y  :   0 z  :   0 r0 :   0 r1 :   0 r2 :   0 r3 :   0 r4 :   0 
 r5 :   0 r6 :   0 r7 :   0 r8 :   0 r9 :   0 r10:   0 r11:   0 r12:   0 
-r13:   0 r14:   0 r15:   0 r16:   5 r17:  29 r18:   0 r19:   0 r20:   6 
-r21:   3 r22:   3 r23:   7 r24:   0 r25:   0 r26:   0 r27:   0 r28:   8 
+r13:   0 r14:   0 r15:   0 r16:   5 r17:  29 r18:   0 r19:   0 r20:   7 
+r21:   3 r22:   3 r23:   6 r24:   0 r25:   0 r26:   0 r27:   0 r28:   8 
 r29:  15 r30:  14 r31:   0 
 Registers used: 9 out of 35 (25.7%)
 
 "ATtiny45" instruction use summary:
 .lds  :   0 .sts  :   0 adc   :   0 add   :   0 adiw  :   0 and   :   0 
-andi  :   4 asr   :   0 bclr  :   0 bld   :   0 brbc  :   0 brbs  :   0 
-brcc  :   0 brcs  :   0 break :   0 breq  :   5 brge  :   1 brhc  :   0 
+andi  :   5 asr   :   0 bclr  :   0 bld   :   0 brbc  :   0 brbs  :   0 
+brcc  :   0 brcs  :   0 break :   0 breq  :   4 brge  :   1 brhc  :   0 
 brhs  :   0 brid  :   0 brie  :   0 brlo  :   2 brlt  :   0 brmi  :   0 
-brne  :  24 brpl  :   0 brsh  :   0 brtc  :   0 brts  :   0 brvc  :   0 
+brne  :  25 brpl  :   0 brsh  :   0 brtc  :   0 brts  :   0 brvc  :   0 
 brvs  :   0 bset  :   0 bst   :   0 cbi   :   7 cbr   :   1 clc   :   0 
 clh   :   0 cli   :   0 cln   :   0 clr   :   3 cls   :   0 clt   :   0 
-clv   :   0 clz   :   0 com   :   0 cp    :   1 cpc   :   0 cpi   :  29 
+clv   :   0 clz   :   0 com   :   0 cp    :   1 cpc   :   0 cpi   :  28 
 cpse  :   0 dec   :   3 eor   :   0 icall :   0 ijmp  :   0 in    :   0 
 inc   :   3 ld    :   0 ldd   :   0 ldi   :  28 lds   :   0 lpm   :   0 
-lsl   :   3 lsr   :   0 mov   :   3 movw  :   0 neg   :   0 nop   :   0 
+lsl   :   1 lsr   :   2 mov   :   3 movw  :   0 neg   :   0 nop   :   0 
 or    :   0 ori   :   0 out   :   0 pop   :   0 push  :   0 rcall :   1 
 ret   :   1 reti  :   0 rjmp  :   8 rol   :   0 ror   :   0 sbc   :   0 
 sbci  :   0 sbi   :  10 sbic  :   1 sbis  :   1 sbiw  :   0 sbr   :   2 
@@ -1034,7 +1032,7 @@ sbrc  :   2 sbrs  :   2 sec   :   0 seh   :   0 sei   :   0 sen   :   0
 ser   :   0 ses   :   0 set   :   0 sev   :   0 sez   :   0 sleep :   0 
 spm   :   0 st    :   0 std   :   0 sts   :   0 sub   :   0 subi  :   1 
 swap  :   1 tst   :   0 wdr   :   0 
-Instructions used: 26 out of 105 (24.8%)
+Instructions used: 27 out of 105 (25.7%)
 
 "ATtiny45" memory use summary [bytes]:
 Segment   Begin    End      Code   Data   Used    Size   Use%
