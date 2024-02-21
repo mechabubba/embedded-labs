@@ -43,27 +43,21 @@ d8:	cpi @0,9 ; digit=9
 d9:
 .endmacro
 
-; macro for sending bit to SDI.
+; macro for sending byte to SDI.
 ; we will need to do the clock manually here. bits shifted in lsb to msb, R29 first, then R30.
-.macro send_bit
-	; send first bit of byte.
-	sbrc @0,1
-	cbi PORTB,4
-	sbrs @0,1
-	sbi PORTB,4
-	sbi PORTB,2	; clock in
-	cbi PORTB,2	; clock out
-.endmacro
-	
 .macro send_byte
 	; shift byte 8 times, use send_bit macro.
-	ldi R23, (8 - 1)
+	ldi R23, 8
 	_sb_shift_loop:
-		send_bit @0
-		lsl @0
-		dec R23
-		cpi R23, 0
-		breq _sb_shift_loop
+		sbrc @0,1 ; send the rightmost bit
+		cbi PORTB,4
+		sbrs @0,1
+		sbi PORTB,4
+		sbi PORTB,2	; clock in
+		cbi PORTB,2	; clock out
+		lsl @0 ; logical shift left so the next bit is the rightmost
+		dec R23 ; Decrement the loop counter
+		brne _sb_shift_loop
 .endmacro
 
 .cseg
@@ -111,11 +105,8 @@ debounce:
 		inc R22			; inc it
 
 		dec R23			; loop logic over. dec index
-		cpi R23, 0		; compare index to 0...
-		breq _db_check_results	; ...and branch out if we need to.
+		brne _db
 
-	; case *after* loop.
-	_db_check_results:
 		lsl R20				; shift R20 once to the left so the second bit stores the stat
 		cp R22, R21
 		brge _db_done_le	; if R22 >= R21 (if more 1s than 0s), buttons assumed to be pressed.

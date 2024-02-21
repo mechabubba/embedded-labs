@@ -1,5 +1,5 @@
 
-AVRASM ver. 2.2.8  C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm Fri Feb 16 13:50:53 2024
+AVRASM ver. 2.2.8  C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm Wed Feb 21 17:07:23 2024
 
 [builtin](2): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\Atmel\ATtiny_DFP\2.0.368\avrasm\inc\tn45def.inc'
 C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm(8): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\Atmel\ATtiny_DFP\2.0.368\avrasm\inc\tn45def.inc'
@@ -744,6 +744,8 @@ C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm(8): Including
                                  
                                  ; ***** END OF FILE ******************************************************
                                  
+                                 ; macro small macro to write 7seg digits to a register.
+                                 ; @0 is register compared, @1 is register written to.
                                  .macro segwrite
                                  	cpi @0,0 ; digit=0
                                  	brne d0
@@ -778,6 +780,23 @@ C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm(8): Including
                                  d9:
                                  .endmacro
                                  
+                                 ; macro for sending byte to SDI.
+                                 ; we will need to do the clock manually here. bits shifted in lsb to msb, R29 first, then R30.
+                                 .macro send_byte
+                                 	; shift byte 8 times, use send_bit macro.
+                                 	ldi R23, 8
+                                 	_sb_shift_loop:
+                                 		sbrc @0,1 ; send the rightmost bit
+                                 		cbi PORTB,4
+                                 		sbrs @0,1
+                                 		sbi PORTB,4
+                                 		sbi PORTB,2	; clock in
+                                 		cbi PORTB,2	; clock out
+                                 		lsl @0 ; logical shift left so the next bit is the rightmost
+                                 		dec R23 ; Decrement the loop counter
+                                 		brne _sb_shift_loop
+                                 .endmacro
+                                 
                                  .cseg
                                  .org 0
                                  
@@ -796,105 +815,182 @@ C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm(8): Including
 000004 9abc                      	sbi DDRB,4
                                  
                                  loop:
-                                 	; TODO: Add button debounce code here
-000005 3000                      	cpi R16,0
-000006 f01f                      	brie state0 ; If R16 = 0, go to state0.
-000007 3001                      	cpi R16,1
-000008 f01f                      	brie state1 ; If R16 = 1, go to state1.
-000009 c00d                      	rjmp write_segments ; Otherwise head straight to the segment encoder
+000005 d008                      	rcall debounce ; first debounce input
+                                 	; based on the result of this (R20) we will set the state accordingly.
+000006 3000                      	cpi R16,0
+000007 f0c1                      	breq state0 ; If R16 = 0, go to state0.
+000008 3001                      	cpi R16,1
+000009 f0d9                      	breq state1 ; If R16 = 1, go to state1.
+00000a 3042                      	cpi R20,2
+00000b f549                      	brne write_segments ; If button is not just unpressed, go to encoder.
+00000c e000                      	ldi R16,0 ; Set state back to 0 then go to encoder
+00000d c027                      	rjmp write_segments
                                  
+                                 debounce:
+                                 	; reimplemented from class code.
+                                 	; r21 is num of 0s, r22 is num of 1s. r23 is loop index
+                                 	; r20 is 1 if buttons pressed, 0 otherwise.
+00000e 2755                      	clr R21 ; clear some regs beforehand.
+00000f 2766                      	clr R22
+000010 e079                      	ldi R23, (10 - 1)
+                                 
+                                 	; the loop.
+                                 	_db:
+000011 99b3                      		sbic PINB,3	; if PB3 is clear (button unpressed)...
+000012 9553                      		inc	R21			; inc it
+000013 9bb3                      		sbis PINB,3	; if PB3 is set (button pressed)...
+000014 9563                      		inc R22			; inc it
+                                 
+000015 957a                      		dec R23			; loop logic over. dec index
+000016 3070                      		cpi R23, 0		; compare index to 0...
+000017 f001                      		breq _db_check_results	; ...and branch out if we need to.
+                                 
+                                 	; case *after* loop.
+                                 	_db_check_results:
+000018 0f44                      		lsl R20				; shift R20 once to the left so the second bit stores the stat
+000019 1765                      		cp R22, R21
+00001a f414                      		brge _db_done_le	; if R22 >= R21 (if more 1s than 0s), buttons assumed to be pressed.
+00001b 6041                      		sbr R20, 1			; set 1 and get outta here
+00001c c002                      		rjmp _db_done
+                                 
+                                 		_db_done_le:
+00001d 7f4e                      			cbr R20,1		; otherwise, assumed to be not pressed.
+00001e c000                      			rjmp _db_done
+                                 
+                                 	; we're done.
+                                 	_db_done:
+00001f 9508                      		ret ; able to ret bc of rcall
+                                 ; R20 stores the state of the button - 0 means the button is currently unpressed, 1 means the button was just pressed.
+                                 ; 2 means the button was just unpressed, and 3 means the button is currently pressed.
+                                 
+                                 ; state zero clears the counter and writes to the display.
                                  state0:
-00000a 27cc                      	clr R28
-00000b c00b                      	rjmp write_segments
+000020 27cc                      	clr R28
+000021 3042                      	cpi R20,2
+000022 f491                      	brne write_segments ; If R20 is not 2, then don't change the state
+000023 e001                      	ldi R16,1 ; Switch to state 1
+000024 c010                      	rjmp write_segments
                                  
+                                 ; state 1 
+                                 ; note: r28 stores both digits as each respective nibble. 
                                  state1:
-00000c 95c3                      	inc R28
-00000d 2f1c                      	mov R17,R28
-00000e 701f                      	andi R17,0x0F
-00000f 301a                      	cpi R17,0x0A
-000010 f030                      	brlo write_segments ; Goto write_segments if we have not exceeded 9 on the lower digit
-000011 7fc0                      	andi R28,0xF0 ; Clear the lower digit to 0
-000012 5fc0                      	subi R28,0xF0 ; Add 1 to the upper nibble by subtracting -16, the fact that there is no addi is really stupid
-000013 c003                      	rjmp write_segments
+000025 95c3                      	inc R28
+000026 2f1c                      	mov R17,R28
+000027 701f                      	andi R17,0x0F
+000028 301a                      	cpi R17,0x0A
+000029 f058                      	brlo write_segments ; Goto write_segments if we have not exceeded 9 on the lower digit
+00002a 7fc0                      	andi R28,0xF0 ; Clear the lower digit to 0
+00002b 5fc0                      	subi R28,0xF0 ; Add 1 to the upper nibble by subtracting -16, the fact that there is no addi is really stupid
+00002c 3041                      	cpi R20,1 ; Is button just pressed?
+00002d f011                      	breq s2 ; Set to state 2
+00002e 31c0                      	cpi R28,0x10 
+00002f f028                      	brlo write_segments ; Skip if less than 100
+000030 e002                      s2:	ldi R16,2 ; Switch to state 2
+000031 c003                      	rjmp write_segments
                                  
                                  write_overflow:
-000014 efdd                      	ldi R29,0xFD
-000015 e8ef                      	ldi R30,0x8F
-000016 c045                      	rjmp write_IO
+000032 efdd                      	ldi R29,0xFD
+000033 e8ef                      	ldi R30,0x8F
+000034 c045                      	rjmp write_IO
                                  
                                  write_segments: ; Converts the number in R28 into the 7-segment encodings for R29,R30
-000017 2f1c                      	mov R17,R28
-000018 9512                      	swap R17
-000019 701f                      	andi R17,0x0F ; get the upper nibble of R28 first
-00001a 301a                      	cpi R17,10
-00001b f3c1                      	breq write_overflow ; If counter is overflowing then write OF instead.
-00001c 3010
-00001d f409
-00001e efdc
-00001f 3011
-000020 f409
-000021 e6d0
-000022 3012
-000023 f409
-000024 edda
-000025 3013
-000026 f409
-000027 efd2
-000028 3014
-000029 f409
-00002a e6d6
-00002b 3015
-00002c f409
-00002d ebd6
-00002e 3016
-00002f f409
-000030 ebde
-000031 3017
-000032 f409
-000033 eed0
-000034 3018
-000035 f409
-000036 efde
-000037 3019
-000038 f409
-000039 efd6                      	segwrite R17,R29 ; Write the left digit
-00003a 60d1                      	sbr R29,0x01 ; Add the decimal point to the left digit
-00003b 2f1c                      	mov R17,R28
-00003c 701f                      	andi R17,0x0F ; Then get the lower nibble of R28
-00003d 3010
+000035 2f1c                      	mov R17,R28
+000036 9512                      	swap R17
+000037 701f                      	andi R17,0x0F ; get the upper nibble of R28 first
+000038 301a                      	cpi R17,10
+000039 f3c1                      	breq write_overflow ; If counter is overflowing then write OF instead.
+00003a 3010
+00003b f409
+00003c efdc
+00003d 3011
 00003e f409
-00003f efec
-000040 3011
+00003f e6d0
+000040 3012
 000041 f409
-000042 e6e0
-000043 3012
+000042 edda
+000043 3013
 000044 f409
-000045 edea
-000046 3013
+000045 efd2
+000046 3014
 000047 f409
-000048 efe2
-000049 3014
+000048 e6d6
+000049 3015
 00004a f409
-00004b e6e6
-00004c 3015
+00004b ebd6
+00004c 3016
 00004d f409
-00004e ebe6
-00004f 3016
+00004e ebde
+00004f 3017
 000050 f409
-000051 ebee
-000052 3017
+000051 eed0
+000052 3018
 000053 f409
-000054 eee0
-000055 3018
+000054 efde
+000055 3019
 000056 f409
-000057 efee
-000058 3019
-000059 f409
-00005a efe6                      	segwrite R17,R30 ; Write the right digit
-00005b c000                      	rjmp write_IO
+000057 efd6                      	segwrite R17,R29 ; Write the left digit
+000058 60d1                      	sbr R29,0x01 ; Add the decimal point to the left digit
+000059 2f1c                      	mov R17,R28
+00005a 701f                      	andi R17,0x0F ; Then get the lower nibble of R28
+00005b 3010
+00005c f409
+00005d efec
+00005e 3011
+00005f f409
+000060 e6e0
+000061 3012
+000062 f409
+000063 edea
+000064 3013
+000065 f409
+000066 efe2
+000067 3014
+000068 f409
+000069 e6e6
+00006a 3015
+00006b f409
+00006c ebe6
+00006d 3016
+00006e f409
+00006f ebee
+000070 3017
+000071 f409
+000072 eee0
+000073 3018
+000074 f409
+000075 efee
+000076 3019
+000077 f409
+000078 efe6                      	segwrite R17,R30 ; Write the right digit
+000079 c000                      	rjmp write_IO
                                  
+                                 ; write to io. send bits from r29 and r30. uses a handy macro defined above.
                                  write_IO:
-                                 	; SEND TO PINS HERE
+00007a 9ac0                      	sbi PORTB,0	; pull OE high
+00007b e078
+00007c fdd1
+00007d 98c4
+00007e ffd1
+00007f 9ac4
+000080 9ac2
+000081 98c2
+000082 0fdd
+000083 957a
+000084 f7b9                      	send_byte R29	; send 10s byte
+000085 e078
+000086 fde1
+000087 98c4
+000088 ffe1
+000089 9ac4
+00008a 9ac2
+00008b 98c2
+00008c 0fee
+00008d 957a
+00008e f7b9                      	send_byte R30	; send 1s byte
+00008f 9ac1                      	sbi PORTB,1	; pulse latch
+000090 98c1                      	cbi PORTB,1
+000091 98c0                      	cbi PORTB,0	; pull OE low
+000092 cf72                      	rjmp loop
 
 
 RESOURCE USE INFORMATION
@@ -914,36 +1010,36 @@ counted separately from r26..r31 here.
 "ATtiny45" register use summary:
 x  :   0 y  :   0 z  :   0 r0 :   0 r1 :   0 r2 :   0 r3 :   0 r4 :   0 
 r5 :   0 r6 :   0 r7 :   0 r8 :   0 r9 :   0 r10:   0 r11:   0 r12:   0 
-r13:   0 r14:   0 r15:   0 r16:   2 r17:  29 r18:   0 r19:   0 r20:   0 
-r21:   0 r22:   0 r23:   0 r24:   0 r25:   0 r26:   0 r27:   0 r28:   7 
-r29:  12 r30:  11 r31:   0 
-Registers used: 5 out of 35 (14.3%)
+r13:   0 r14:   0 r15:   0 r16:   5 r17:  29 r18:   0 r19:   0 r20:   6 
+r21:   3 r22:   3 r23:   7 r24:   0 r25:   0 r26:   0 r27:   0 r28:   8 
+r29:  15 r30:  14 r31:   0 
+Registers used: 9 out of 35 (25.7%)
 
 "ATtiny45" instruction use summary:
 .lds  :   0 .sts  :   0 adc   :   0 add   :   0 adiw  :   0 and   :   0 
 andi  :   4 asr   :   0 bclr  :   0 bld   :   0 brbc  :   0 brbs  :   0 
-brcc  :   0 brcs  :   0 break :   0 breq  :   1 brge  :   0 brhc  :   0 
-brhs  :   0 brid  :   0 brie  :   2 brlo  :   1 brlt  :   0 brmi  :   0 
-brne  :  20 brpl  :   0 brsh  :   0 brtc  :   0 brts  :   0 brvc  :   0 
-brvs  :   0 bset  :   0 bst   :   0 cbi   :   1 cbr   :   0 clc   :   0 
-clh   :   0 cli   :   0 cln   :   0 clr   :   1 cls   :   0 clt   :   0 
-clv   :   0 clz   :   0 com   :   0 cp    :   0 cpc   :   0 cpi   :  24 
-cpse  :   0 dec   :   0 eor   :   0 icall :   0 ijmp  :   0 in    :   0 
-inc   :   1 ld    :   0 ldd   :   0 ldi   :  22 lds   :   0 lpm   :   0 
-lsl   :   0 lsr   :   0 mov   :   3 movw  :   0 neg   :   0 nop   :   0 
-or    :   0 ori   :   0 out   :   0 pop   :   0 push  :   0 rcall :   0 
-ret   :   0 reti  :   0 rjmp  :   6 rol   :   0 ror   :   0 sbc   :   0 
-sbci  :   0 sbi   :   4 sbic  :   0 sbis  :   0 sbiw  :   0 sbr   :   1 
-sbrc  :   0 sbrs  :   0 sec   :   0 seh   :   0 sei   :   0 sen   :   0 
+brcc  :   0 brcs  :   0 break :   0 breq  :   5 brge  :   1 brhc  :   0 
+brhs  :   0 brid  :   0 brie  :   0 brlo  :   2 brlt  :   0 brmi  :   0 
+brne  :  24 brpl  :   0 brsh  :   0 brtc  :   0 brts  :   0 brvc  :   0 
+brvs  :   0 bset  :   0 bst   :   0 cbi   :   7 cbr   :   1 clc   :   0 
+clh   :   0 cli   :   0 cln   :   0 clr   :   3 cls   :   0 clt   :   0 
+clv   :   0 clz   :   0 com   :   0 cp    :   1 cpc   :   0 cpi   :  29 
+cpse  :   0 dec   :   3 eor   :   0 icall :   0 ijmp  :   0 in    :   0 
+inc   :   3 ld    :   0 ldd   :   0 ldi   :  28 lds   :   0 lpm   :   0 
+lsl   :   3 lsr   :   0 mov   :   3 movw  :   0 neg   :   0 nop   :   0 
+or    :   0 ori   :   0 out   :   0 pop   :   0 push  :   0 rcall :   1 
+ret   :   1 reti  :   0 rjmp  :   8 rol   :   0 ror   :   0 sbc   :   0 
+sbci  :   0 sbi   :  10 sbic  :   1 sbis  :   1 sbiw  :   0 sbr   :   2 
+sbrc  :   2 sbrs  :   2 sec   :   0 seh   :   0 sei   :   0 sen   :   0 
 ser   :   0 ses   :   0 set   :   0 sev   :   0 sez   :   0 sleep :   0 
 spm   :   0 st    :   0 std   :   0 sts   :   0 sub   :   0 subi  :   1 
 swap  :   1 tst   :   0 wdr   :   0 
-Instructions used: 16 out of 105 (15.2%)
+Instructions used: 26 out of 105 (24.8%)
 
 "ATtiny45" memory use summary [bytes]:
 Segment   Begin    End      Code   Data   Used    Size   Use%
 ---------------------------------------------------------------
-[.cseg] 0x000000 0x0000ba    186      0    186    4096   4.5%
+[.cseg] 0x000000 0x000126    294      0    294    4096   7.2%
 [.dseg] 0x000060 0x000060      0      0      0     256   0.0%
 [.eseg] 0x000000 0x000000      0      0      0     256   0.0%
 
