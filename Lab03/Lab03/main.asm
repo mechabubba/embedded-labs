@@ -2,8 +2,9 @@
 ; Lab03.asm
 ;
 ; Created: 2/6/2024 3:30:42 PM
-; Author : jared
-;
+; Author : Jared M., Steven V.
+; Description:
+; 
 
 .include "tn45def.inc"
 
@@ -12,40 +13,40 @@
 .macro segwrite
 	cpi @0,0 ; digit=0
 	brne d0
-	ldi @1,0b00111111
+	ldi @1,0b11111100
 d0:	cpi @0,1 ; digit=1
 	brne d1
-	ldi @1,0b00000110
+	ldi @1,0b01100000
 d1:	cpi @0,2 ; digit=2
 	brne d2
-	ldi @1,0b01011011
+	ldi @1,0b11011010
 d2:	cpi @0,3 ; digit=3
 	brne d3
-	ldi @1,0b01100110
+	ldi @1,0b11110010
 d3:	cpi @0,4 ; digit=4
 	brne d4
-	ldi @1,0b01101101
+	ldi @1,0b01100110
 d4:	cpi @0,5 ; digit=5
 	brne d5
-	ldi @1,0b01111101
+	ldi @1,0b10110110
 d5:	cpi @0,6 ; digit=6
 	brne d6
-	ldi @1,0b01111111
+	ldi @1,0b10111110
 d6:	cpi @0,7 ; digit=7
 	brne d7
-	ldi @1,0b00000111
+	ldi @1,0b11100000
 d7:	cpi @0,8 ; digit=8
 	brne d8
-	ldi @1,0b01111111
+	ldi @1,0b11111110
 d8:	cpi @0,9 ; digit=9
 	brne d9
-	ldi @1,0b01101111
+	ldi @1,0b11110110
 d9:
 .endmacro
 
 ; macro for sending byte to SDI.
 ; we will need to do the clock manually here. bits shifted in lsb to msb, R29 first, then R30.
-.macro send_byte
+.macro send_byte ; Something is not going right here
 	; shift byte 8 times, use send_bit macro.
 	ldi R23, 7
 	_sb_shift_loop:
@@ -135,23 +136,24 @@ state0:
 ; state 1 
 ; note: r28 stores both digits as each respective nibble. 
 state1:
-	inc R28
+	cpi R20,1 ; Is button just pressed?
+	brne s1
+	ldi R16,2 ; Set to state 2
+s1:	inc R28
 	mov R17,R28
 	andi R17,0x0F
 	cpi R17,0x0A
 	brlo write_segments ; Goto write_segments if we have not exceeded 9 on the lower digit
 	andi R28,0xF0 ; Clear the lower digit to 0
 	subi R28,0xF0 ; Add 1 to the upper nibble by subtracting -16, the fact that there is no addi is really stupid
-	cpi R20,1 ; Is button just pressed?
-	breq s2 ; Set to state 2
 	cpi R28,0xA9 
 	brlo write_segments ; Skip if less than 100
-s2:	ldi R16,2 ; Switch to state 2
+	ldi R16,2 ; Switch to state 2
 	rjmp write_segments
 
 write_overflow:
-	ldi R29,0b10111111
-	ldi R30,0b11110001
+	ldi R29,0b00000011
+	ldi R30,0b00000011
 	rjmp write_IO
 
 write_segments: ; Converts the number in R28 into the 7-segment encodings for R29,R30
@@ -161,7 +163,7 @@ write_segments: ; Converts the number in R28 into the 7-segment encodings for R2
 	cpi R17,10
 	breq write_overflow ; If counter is overflowing then write OF instead.
 	segwrite R17,R29 ; Write the left digit
-	sbr R29,0x80 ; Add the decimal point to the left digit
+	sbr R30,0x01 ; Add the decimal point to the left digit
 	mov R17,R28
 	andi R17,0x0F ; Then get the lower nibble of R28
 	segwrite R17,R30 ; Write the right digit
