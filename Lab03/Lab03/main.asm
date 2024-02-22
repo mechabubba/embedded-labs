@@ -3,8 +3,9 @@
 ;
 ; Created: 2/6/2024 3:30:42 PM
 ; Author : Jared M., Steven V.
-; Description:
-; 
+; Description: Implemetation of an interval timer using two seven segment displays.
+;   On button push, two digit timer will start to increase until button is pressed again, where the user can press it once more to reset to zero.
+;   If timer value surpasses 9.9, the display will show an overflow error, where the user can again reset to zero.
 
 .include "tn45def.inc"
 
@@ -83,6 +84,7 @@ init:
 	ldi R16,0
 	ldi R20,3
 
+; main loop.
 loop:
 	rcall debounce ; first debounce input
 	; based on the result of this (R20) we will set the state accordingly.
@@ -98,40 +100,38 @@ loop:
 	ldi R16,0 ; Set state back to 0 then go to encoder
 	rjmp loop
 
+; debounce subroutine reimplemented from class code.
+; R21: num of 0s. R22: num of 1s. R23: loop index
+; sets R20 on exit. bit 1 is current button status, bit 2 is old button status.
 debounce:
-	; reimplemented from class code.
-	; r21 is num of 0s, r22 is num of 1s. r23 is loop index
-	; r20 is 1 if buttons pressed, 0 otherwise.
 	clr R21 ; clear some regs beforehand.
 	clr R22
-	ldi R23, (10 - 1)
+	ldi R23, 10
 
 	; the loop.
 	_db:
 		sbic PINB,3	; if PB3 is clear (button unpressed)...
-		inc	R21			; inc it
+		inc	R21		; inc it
 		sbis PINB,3	; if PB3 is set (button pressed)...
-		inc R22			; inc it
+		inc R22		; inc it
 
-		dec R23			; loop logic over. dec index
+		dec R23		; loop logic over. dec index
 		brne _db
 
-		lsl R20				; shift R20 once to the left so the second bit stores the stat
-		andi R20,0x3		; Make sure that the upper 6 bits are not affected.
-		cp R22, R21
-		brge _db_done_le	; if R22 >= R21 (if more 1s than 0s), buttons assumed to be pressed.
-		sbr R20, 1			; set 1 and get outta here
-		rjmp _db_done
+	lsl R20			; shift R20 once to the left so the second bit stores the stat
+	andi R20,0x3	; Make sure that the upper 6 bits are not affected.
+	cp R22, R21
+	brge _db_done_le	; if R22 >= R21 (if more 1s than 0s), buttons assumed to be pressed.
+	sbr R20, 1			; set 1 and get outta here
+	rjmp _db_done
 
-		_db_done_le:
-			cbr R20,1		; otherwise, assumed to be not pressed.
-			rjmp _db_done
+	_db_done_le:
+		cbr R20,1		; otherwise, assumed to be not pressed.
+		rjmp _db_done
 
 	; we're done.
 	_db_done:
 		ret ; able to ret bc of rcall
-; R20 stores the state of the button - 0 means the button is currently unpressed, 1 means the button was just pressed.
-; 2 means the button was just unpressed, and 3 means the button is currently pressed.
 
 ; state zero clears the counter and writes to the display.
 state0:
@@ -166,12 +166,14 @@ state3:
 	ldi R16,2 ; Goto state 2 when button is pressed
 	rjmp write_segments
 
+; writes 'O.F' to signify overflow
 write_overflow:
 	ldi R29,0b11111101
 	ldi R30,0b10001111
 	rjmp write_IO
 
-write_segments: ; Converts the number in R28 into the 7-segment encodings for R29,R30
+; Converts the number in R28 into the 7-segment encodings for R29,R30
+write_segments:
 	mov R17,R28
 	swap R17
 	andi R17,0x0F ; get the upper nibble of R28 first
