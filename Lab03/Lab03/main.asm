@@ -41,14 +41,17 @@ d7:	cpi @0,8 ; digit=8
 d8:	cpi @0,9 ; digit=9
 	brne d9
 	ldi @1,0b11110110
-d9:
+d9: cpi @0,10
+	brlo dA
+	ldi @1,0b00000010
+dA:	
 .endmacro
 
 ; macro for sending byte to SDI.
 ; we will need to do the clock manually here. bits shifted in lsb to msb, R29 first, then R30.
 .macro send_byte ; Something is not going right here
 	; shift byte 8 times, use send_bit macro.
-	ldi R23, 7
+	ldi R23, 8
 	_sb_shift_loop:
 		sbrc @0,1 ; send the rightmost bit
 		sbi PORTB,4
@@ -77,6 +80,8 @@ init:
 	sbi DDRB,2
 	cbi DDRB,3
 	sbi DDRB,4
+	ldi R16,0
+	ldi R20,3
 
 loop:
 	rcall debounce ; first debounce input
@@ -85,10 +90,13 @@ loop:
 	breq state0 ; If R16 = 0, go to state0.
 	cpi R16,1
 	breq state1 ; If R16 = 1, go to state1.
-	cpi R20,2
-	brne write_segments ; If button is not just unpressed, go to encoder.
+	cpi R16,3
+	breq state3 ; If R16 = 3, go to state3.
+	; Otherwise, go to State 2:
+	cpi R20,1
+	brne loop ; If button is not just unpressed, go to encoder.
 	ldi R16,0 ; Set state back to 0 then go to encoder
-	rjmp write_segments
+	rjmp loop
 
 debounce:
 	; reimplemented from class code.
@@ -128,7 +136,7 @@ debounce:
 ; state zero clears the counter and writes to the display.
 state0:
 	clr R28
-	cpi R20,2
+	cpi R20,1 ; Was the button just unpressed
 	brne write_segments ; If R20 is not 2, then don't change the state
 	ldi R16,1 ; Switch to state 1
 	rjmp write_segments
@@ -136,9 +144,9 @@ state0:
 ; state 1 
 ; note: r28 stores both digits as each respective nibble. 
 state1:
-	cpi R20,1 ; Is button just pressed?
+	cpi R20,2 ; Is button just pressed?
 	brne s1
-	ldi R16,2 ; Set to state 2
+	ldi R16,3 ; Set to state 3
 s1:	inc R28
 	mov R17,R28
 	andi R17,0x0F
@@ -148,12 +156,19 @@ s1:	inc R28
 	subi R28,0xF0 ; Add 1 to the upper nibble by subtracting -16, the fact that there is no addi is really stupid
 	cpi R28,0xA9 
 	brlo write_segments ; Skip if less than 100
-	ldi R16,2 ; Switch to state 2
+	ldi R16,3 ; Switch to state 2
+	rjmp write_segments	
+
+; state 3 - do nothing until next press.
+state3:
+	cpi R20,2
+	brne write_segments
+	ldi R16,2 ; Goto state 2 when button is pressed
 	rjmp write_segments
 
 write_overflow:
-	ldi R29,0b00000011
-	ldi R30,0b00000011
+	ldi R29,0b11111101
+	ldi R30,0b10001111
 	rjmp write_IO
 
 write_segments: ; Converts the number in R28 into the 7-segment encodings for R29,R30
@@ -161,9 +176,10 @@ write_segments: ; Converts the number in R28 into the 7-segment encodings for R2
 	swap R17
 	andi R17,0x0F ; get the upper nibble of R28 first
 	cpi R17,10
-	breq write_overflow ; If counter is overflowing then write OF instead.
+	brsh write_overflow ; If counter is overflowing then write OF instead.
+	; Otherwise do normal write:
 	segwrite R17,R29 ; Write the left digit
-	sbr R30,0x01 ; Add the decimal point to the left digit
+	sbr R29,0x01 ; Add the decimal point to the left digit
 	mov R17,R28
 	andi R17,0x0F ; Then get the lower nibble of R28
 	segwrite R17,R30 ; Write the right digit
@@ -172,14 +188,38 @@ write_segments: ; Converts the number in R28 into the 7-segment encodings for R2
 ; write to io. send bits from r29 and r30. uses a handy macro defined above.
 write_IO:
 	sbi PORTB,0	; pull OE high
-	send_byte R30	; send 10s byte
-	send_byte R29	; send 1s byte
+	; Send 10s byte
+	ldi R23, 8
+	_sb_shift_loop_1: ;Lower digit (correct)
+		sbrc R30,0 ; send the rightmost bit
+		sbi PORTB,4
+		sbrs R30,0
+		cbi PORTB,4
+		sbi PORTB,2	; clock in
+		cbi PORTB,2	; clock out
+		lsr R30 ; logical shift left so the next bit is the rightmost
+		dec R23 ; Decrement the loop counter
+		brne _sb_shift_loop_1
+	cbi PORTB,4
+	; Send 1s byte
+	ldi R23, 8
+	_sb_shift_loop_2: ;Upper digit (Incorrect?)
+		sbrc R29,0 ; send the rightmost bit
+		sbi PORTB,4
+		sbrs R29,0
+		cbi PORTB,4
+		sbi PORTB,2	; clock in
+		cbi PORTB,2	; clock out
+		lsr R29 ; logical shift left so the next bit is the rightmost
+		dec R23 ; Decrement the loop counter
+		brne _sb_shift_loop_2
+
 	sbi PORTB,1	; pulse latch
 	cbi PORTB,1
 	cbi PORTB,0	; pull OE low
 
 	; Loop to drag out the timer to be closer to 1 ms
-	ldi R23,4
+	ldi R23,4 ;SHOULD BE 4
 i1:		ldi R24,255
 i2:			ldi R25,255
 i3:				dec R25
