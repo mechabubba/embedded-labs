@@ -12,34 +12,34 @@
 .macro segwrite
 	cpi @0,0 ; digit=0
 	brne d0
-	ldi @1,0xFC
+	ldi @1,0b00111111
 d0:	cpi @0,1 ; digit=1
 	brne d1
-	ldi @1,0x60
+	ldi @1,0b00000110
 d1:	cpi @0,2 ; digit=2
 	brne d2
-	ldi @1,0xDA
+	ldi @1,0b01011011
 d2:	cpi @0,3 ; digit=3
 	brne d3
-	ldi @1,0xF2
+	ldi @1,0b01100110
 d3:	cpi @0,4 ; digit=4
 	brne d4
-	ldi @1,0x66
+	ldi @1,0b01101101
 d4:	cpi @0,5 ; digit=5
 	brne d5
-	ldi @1,0xB6
+	ldi @1,0b01111101
 d5:	cpi @0,6 ; digit=6
 	brne d6
-	ldi @1,0xBE
+	ldi @1,0b01111111
 d6:	cpi @0,7 ; digit=7
 	brne d7
-	ldi @1,0xE0
+	ldi @1,0b00000111
 d7:	cpi @0,8 ; digit=8
 	brne d8
-	ldi @1,0xFE
+	ldi @1,0b01111111
 d8:	cpi @0,9 ; digit=9
 	brne d9
-	ldi @1,0xF6
+	ldi @1,0b01101111
 d9:
 .endmacro
 
@@ -47,12 +47,12 @@ d9:
 ; we will need to do the clock manually here. bits shifted in lsb to msb, R29 first, then R30.
 .macro send_byte
 	; shift byte 8 times, use send_bit macro.
-	ldi R23, 8
+	ldi R23, 7
 	_sb_shift_loop:
 		sbrc @0,1 ; send the rightmost bit
-		cbi PORTB,4
-		sbrs @0,1
 		sbi PORTB,4
+		sbrs @0,1
+		cbi PORTB,4
 		sbi PORTB,2	; clock in
 		cbi PORTB,2	; clock out
 		lsr @0 ; logical shift left so the next bit is the rightmost
@@ -144,14 +144,14 @@ state1:
 	subi R28,0xF0 ; Add 1 to the upper nibble by subtracting -16, the fact that there is no addi is really stupid
 	cpi R20,1 ; Is button just pressed?
 	breq s2 ; Set to state 2
-	cpi R28,0x10 
+	cpi R28,0xA9 
 	brlo write_segments ; Skip if less than 100
 s2:	ldi R16,2 ; Switch to state 2
 	rjmp write_segments
 
 write_overflow:
-	ldi R29,0xFD
-	ldi R30,0x8F
+	ldi R29,0b10111111
+	ldi R30,0b11110001
 	rjmp write_IO
 
 write_segments: ; Converts the number in R28 into the 7-segment encodings for R29,R30
@@ -161,7 +161,7 @@ write_segments: ; Converts the number in R28 into the 7-segment encodings for R2
 	cpi R17,10
 	breq write_overflow ; If counter is overflowing then write OF instead.
 	segwrite R17,R29 ; Write the left digit
-	sbr R29,0x01 ; Add the decimal point to the left digit
+	sbr R29,0x80 ; Add the decimal point to the left digit
 	mov R17,R28
 	andi R17,0x0F ; Then get the lower nibble of R28
 	segwrite R17,R30 ; Write the right digit
@@ -170,9 +170,20 @@ write_segments: ; Converts the number in R28 into the 7-segment encodings for R2
 ; write to io. send bits from r29 and r30. uses a handy macro defined above.
 write_IO:
 	sbi PORTB,0	; pull OE high
-	send_byte R29	; send 10s byte
-	send_byte R30	; send 1s byte
+	send_byte R30	; send 10s byte
+	send_byte R29	; send 1s byte
 	sbi PORTB,1	; pulse latch
 	cbi PORTB,1
 	cbi PORTB,0	; pull OE low
+
+	; Loop to drag out the timer to be closer to 1 ms
+	ldi R23,4
+i1:		ldi R24,255
+i2:			ldi R25,255
+i3:				dec R25
+				brne i3
+			dec R24
+			brne i2
+		dec R23
+		brne i1
 	rjmp loop

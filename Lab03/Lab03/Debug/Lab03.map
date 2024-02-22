@@ -1,5 +1,5 @@
 
-AVRASM ver. 2.2.8  C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm Wed Feb 21 17:38:03 2024
+AVRASM ver. 2.2.8  C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm Wed Feb 21 18:40:51 2024
 
 
 EQU  SIGNATURE_000 0000001e
@@ -473,3 +473,6 @@ CSEG d8@segwrite@1571 00000076
 CSEG d9@segwrite@1571 00000079
 CSEG _sb_shift_loop@send_byte@1610 0000007c
 CSEG _sb_shift_loop@send_byte@1625 00000086
+CSEG i1           00000093
+CSEG i2           00000094
+CSEG i3           00000095

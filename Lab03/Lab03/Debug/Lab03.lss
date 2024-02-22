@@ -1,5 +1,5 @@
 
-AVRASM ver. 2.2.8  C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm Wed Feb 21 17:38:03 2024
+AVRASM ver. 2.2.8  C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm Wed Feb 21 18:40:51 2024
 
 [builtin](2): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\Atmel\ATtiny_DFP\2.0.368\avrasm\inc\tn45def.inc'
 C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm(8): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\Atmel\ATtiny_DFP\2.0.368\avrasm\inc\tn45def.inc'
@@ -749,34 +749,34 @@ C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm(8): Including
                                  .macro segwrite
                                  	cpi @0,0 ; digit=0
                                  	brne d0
-                                 	ldi @1,0xFC
+                                 	ldi @1,0b00111111
                                  d0:	cpi @0,1 ; digit=1
                                  	brne d1
-                                 	ldi @1,0x60
+                                 	ldi @1,0b00000110
                                  d1:	cpi @0,2 ; digit=2
                                  	brne d2
-                                 	ldi @1,0xDA
+                                 	ldi @1,0b01011011
                                  d2:	cpi @0,3 ; digit=3
                                  	brne d3
-                                 	ldi @1,0xF2
+                                 	ldi @1,0b01100110
                                  d3:	cpi @0,4 ; digit=4
                                  	brne d4
-                                 	ldi @1,0x66
+                                 	ldi @1,0b01101101
                                  d4:	cpi @0,5 ; digit=5
                                  	brne d5
-                                 	ldi @1,0xB6
+                                 	ldi @1,0b01111101
                                  d5:	cpi @0,6 ; digit=6
                                  	brne d6
-                                 	ldi @1,0xBE
+                                 	ldi @1,0b01111111
                                  d6:	cpi @0,7 ; digit=7
                                  	brne d7
-                                 	ldi @1,0xE0
+                                 	ldi @1,0b00000111
                                  d7:	cpi @0,8 ; digit=8
                                  	brne d8
-                                 	ldi @1,0xFE
+                                 	ldi @1,0b01111111
                                  d8:	cpi @0,9 ; digit=9
                                  	brne d9
-                                 	ldi @1,0xF6
+                                 	ldi @1,0b01101111
                                  d9:
                                  .endmacro
                                  
@@ -784,12 +784,12 @@ C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm(8): Including
                                  ; we will need to do the clock manually here. bits shifted in lsb to msb, R29 first, then R30.
                                  .macro send_byte
                                  	; shift byte 8 times, use send_bit macro.
-                                 	ldi R23, 8
+                                 	ldi R23, 7
                                  	_sb_shift_loop:
                                  		sbrc @0,1 ; send the rightmost bit
-                                 		cbi PORTB,4
-                                 		sbrs @0,1
                                  		sbi PORTB,4
+                                 		sbrs @0,1
+                                 		cbi PORTB,4
                                  		sbi PORTB,2	; clock in
                                  		cbi PORTB,2	; clock out
                                  		lsr @0 ; logical shift left so the next bit is the rightmost
@@ -881,14 +881,14 @@ C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm(8): Including
 00002b 5fc0                      	subi R28,0xF0 ; Add 1 to the upper nibble by subtracting -16, the fact that there is no addi is really stupid
 00002c 3041                      	cpi R20,1 ; Is button just pressed?
 00002d f011                      	breq s2 ; Set to state 2
-00002e 31c0                      	cpi R28,0x10 
+00002e 3ac9                      	cpi R28,0xA9 
 00002f f028                      	brlo write_segments ; Skip if less than 100
 000030 e002                      s2:	ldi R16,2 ; Switch to state 2
 000031 c003                      	rjmp write_segments
                                  
                                  write_overflow:
-000032 efdd                      	ldi R29,0xFD
-000033 e8ef                      	ldi R30,0x8F
+000032 ebdf                      	ldi R29,0b10111111
+000033 efe1                      	ldi R30,0b11110001
 000034 c045                      	rjmp write_IO
                                  
                                  write_segments: ; Converts the number in R28 into the 7-segment encodings for R29,R30
@@ -899,96 +899,107 @@ C:\Users\jared\Documents\GitHub\embedded-labs\Lab03\Lab03\main.asm(8): Including
 000039 f3c1                      	breq write_overflow ; If counter is overflowing then write OF instead.
 00003a 3010
 00003b f409
-00003c efdc
+00003c e3df
 00003d 3011
 00003e f409
-00003f e6d0
+00003f e0d6
 000040 3012
 000041 f409
-000042 edda
+000042 e5db
 000043 3013
 000044 f409
-000045 efd2
+000045 e6d6
 000046 3014
 000047 f409
-000048 e6d6
+000048 e6dd
 000049 3015
 00004a f409
-00004b ebd6
+00004b e7dd
 00004c 3016
 00004d f409
-00004e ebde
+00004e e7df
 00004f 3017
 000050 f409
-000051 eed0
+000051 e0d7
 000052 3018
 000053 f409
-000054 efde
+000054 e7df
 000055 3019
 000056 f409
-000057 efd6                      	segwrite R17,R29 ; Write the left digit
-000058 60d1                      	sbr R29,0x01 ; Add the decimal point to the left digit
+000057 e6df                      	segwrite R17,R29 ; Write the left digit
+000058 68d0                      	sbr R29,0x80 ; Add the decimal point to the left digit
 000059 2f1c                      	mov R17,R28
 00005a 701f                      	andi R17,0x0F ; Then get the lower nibble of R28
 00005b 3010
 00005c f409
-00005d efec
+00005d e3ef
 00005e 3011
 00005f f409
-000060 e6e0
+000060 e0e6
 000061 3012
 000062 f409
-000063 edea
+000063 e5eb
 000064 3013
 000065 f409
-000066 efe2
+000066 e6e6
 000067 3014
 000068 f409
-000069 e6e6
+000069 e6ed
 00006a 3015
 00006b f409
-00006c ebe6
+00006c e7ed
 00006d 3016
 00006e f409
-00006f ebee
+00006f e7ef
 000070 3017
 000071 f409
-000072 eee0
+000072 e0e7
 000073 3018
 000074 f409
-000075 efee
+000075 e7ef
 000076 3019
 000077 f409
-000078 efe6                      	segwrite R17,R30 ; Write the right digit
+000078 e6ef                      	segwrite R17,R30 ; Write the right digit
 000079 c000                      	rjmp write_IO
                                  
                                  ; write to io. send bits from r29 and r30. uses a handy macro defined above.
                                  write_IO:
 00007a 9ac0                      	sbi PORTB,0	; pull OE high
-00007b e078
-00007c fdd1
-00007d 98c4
-00007e ffd1
-00007f 9ac4
+00007b e077
+00007c fde1
+00007d 9ac4
+00007e ffe1
+00007f 98c4
 000080 9ac2
 000081 98c2
-000082 95d6
+000082 95e6
 000083 957a
-000084 f7b9                      	send_byte R29	; send 10s byte
-000085 e078
-000086 fde1
-000087 98c4
-000088 ffe1
-000089 9ac4
+000084 f7b9                      	send_byte R30	; send 10s byte
+000085 e077
+000086 fdd1
+000087 9ac4
+000088 ffd1
+000089 98c4
 00008a 9ac2
 00008b 98c2
-00008c 95e6
+00008c 95d6
 00008d 957a
-00008e f7b9                      	send_byte R30	; send 1s byte
+00008e f7b9                      	send_byte R29	; send 1s byte
 00008f 9ac1                      	sbi PORTB,1	; pulse latch
 000090 98c1                      	cbi PORTB,1
 000091 98c0                      	cbi PORTB,0	; pull OE low
-000092 cf72                      	rjmp loop
+                                 
+                                 	; Loop to drag out the timer to be closer to 1 ms
+000092 e074                      	ldi R23,4
+000093 ef8f                      i1:		ldi R24,255
+000094 ef9f                      i2:			ldi R25,255
+000095 959a                      i3:				dec R25
+000096 f7f1                      				brne i3
+000097 958a                      			dec R24
+000098 f7d9                      			brne i2
+000099 957a                      		dec R23
+00009a f7c1                      		brne i1
+00009b cf69                      	rjmp loop
 
 
 RESOURCE USE INFORMATION
@@ -1009,21 +1020,21 @@ counted separately from r26..r31 here.
 x  :   0 y  :   0 z  :   0 r0 :   0 r1 :   0 r2 :   0 r3 :   0 r4 :   0 
 r5 :   0 r6 :   0 r7 :   0 r8 :   0 r9 :   0 r10:   0 r11:   0 r12:   0 
 r13:   0 r14:   0 r15:   0 r16:   5 r17:  29 r18:   0 r19:   0 r20:   7 
-r21:   3 r22:   3 r23:   6 r24:   0 r25:   0 r26:   0 r27:   0 r28:   8 
+r21:   3 r22:   3 r23:   8 r24:   2 r25:   2 r26:   0 r27:   0 r28:   8 
 r29:  15 r30:  14 r31:   0 
-Registers used: 9 out of 35 (25.7%)
+Registers used: 11 out of 35 (31.4%)
 
 "ATtiny45" instruction use summary:
 .lds  :   0 .sts  :   0 adc   :   0 add   :   0 adiw  :   0 and   :   0 
 andi  :   5 asr   :   0 bclr  :   0 bld   :   0 brbc  :   0 brbs  :   0 
 brcc  :   0 brcs  :   0 break :   0 breq  :   4 brge  :   1 brhc  :   0 
 brhs  :   0 brid  :   0 brie  :   0 brlo  :   2 brlt  :   0 brmi  :   0 
-brne  :  25 brpl  :   0 brsh  :   0 brtc  :   0 brts  :   0 brvc  :   0 
+brne  :  28 brpl  :   0 brsh  :   0 brtc  :   0 brts  :   0 brvc  :   0 
 brvs  :   0 bset  :   0 bst   :   0 cbi   :   7 cbr   :   1 clc   :   0 
 clh   :   0 cli   :   0 cln   :   0 clr   :   3 cls   :   0 clt   :   0 
 clv   :   0 clz   :   0 com   :   0 cp    :   1 cpc   :   0 cpi   :  28 
-cpse  :   0 dec   :   3 eor   :   0 icall :   0 ijmp  :   0 in    :   0 
-inc   :   3 ld    :   0 ldd   :   0 ldi   :  28 lds   :   0 lpm   :   0 
+cpse  :   0 dec   :   6 eor   :   0 icall :   0 ijmp  :   0 in    :   0 
+inc   :   3 ld    :   0 ldd   :   0 ldi   :  31 lds   :   0 lpm   :   0 
 lsl   :   1 lsr   :   2 mov   :   3 movw  :   0 neg   :   0 nop   :   0 
 or    :   0 ori   :   0 out   :   0 pop   :   0 push  :   0 rcall :   1 
 ret   :   1 reti  :   0 rjmp  :   8 rol   :   0 ror   :   0 sbc   :   0 
@@ -1037,7 +1048,7 @@ Instructions used: 27 out of 105 (25.7%)
 "ATtiny45" memory use summary [bytes]:
 Segment   Begin    End      Code   Data   Used    Size   Use%
 ---------------------------------------------------------------
-[.cseg] 0x000000 0x000126    294      0    294    4096   7.2%
+[.cseg] 0x000000 0x000138    312      0    312    4096   7.6%
 [.dseg] 0x000060 0x000060      0      0      0     256   0.0%
 [.eseg] 0x000000 0x000000      0      0      0     256   0.0%
 
