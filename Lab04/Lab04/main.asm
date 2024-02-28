@@ -18,11 +18,12 @@
 .org 0
 
 ; (R30,R31) is the Z register, for accessing the words in program memory.
-; (R28,R29) is the Y register, which lags behind the Z register for the other text line.
-; R0 is the register used to store values accessed by the Z register.
+; (R28,R29) is the Y register, which temporarily stores the state of the Z register for returning to.
+; R0 is the register used when the send_byte subroutine is called.
 ; R27 is the counter used to track what word is being displayed.
+; R26 is the register that stores the command for the send_command subroutine.
 
-; R16 is a temporary register used in the display_string subroutine.
+; R16, R17 are temporary registers and will not preserve their value across a subroutine call (Used by send_byte, delay_100us, etc.).
 
 words: ; Spaces are included so that the byte count is even, since we are working in a 16-bit instruction processor
 	.DB "Press to Scroll",0x00 ; 16 bytes, This one should not reappear in the scrolling sequence
@@ -49,23 +50,24 @@ init:
 	sbi PORTC,5 ; Turn LED off until initialization is complete.
 
 	ldi R27,0 ; Set the string counter to 0.
-	ldi R28,LOW(2*words) ; Set the Y-register to the "words" label.
-	ldi R29,2*HIGH(words)
-	ldi R30,LOW(2*words_loop) ; Set the Z-register to the "words_loop" label.
-	ldi R31,2*HIGH(words_loop)
+	ldi R30,LOW(2*words) ; Set the Z-register to the "words" label.
+	ldi R31,2*HIGH(words)
 
 	; Initializing the LCD Display
 	cbi PORTB,5 ; Setting the LCD to command mode.
+
 	in R16,PINC
 	cbr R16,0x0F
 	andi R16,0x03
 	out PORTC,R16 ; Send 8-bit command to LCD
+	rcall LCD_strobe
 	rcall delay_5ms ; Wait 5 ms.
 
 	in R16,PINC
 	cbr R16,0x0F
 	andi R16,0x03
 	out PORTC,R16 ; Send 8-bit command to LCD
+	rcall LCD_strobe
 	rcall delay_100us ; Wait 200 us.
 	rcall delay_100us
 
@@ -73,6 +75,7 @@ init:
 	cbr R16,0x0F
 	andi R16,0x03
 	out PORTC,R16 ; Send 8-bit command to LCD
+	rcall LCD_strobe
 	rcall delay_100us ; Wait 200 us.
 	rcall delay_100us
 
@@ -80,18 +83,45 @@ init:
 	cbr R16,0x0F
 	andi R16,0x02
 	out PORTC,R16 ; Send 4-bit command to LCD
+	rcall LCD_strobe
 	rcall delay_100us ; Wait 200 us.
 	rcall delay_100us
 
-	; INSERT REST OF INITIALIZATION HERE!
+	; INSERT REST OF INITIALIZATION HERE? 
 
-	rjmp loop
+	cbi PORTC,5 ; Once initialization is complete, turn LED back on.
 
 loop:
+	sbic PIND,2 ; If button is pressed (PD2 is pulled low), go to update_text
+	rjmp update_text
+	rcall delay_5ms ; Otherwise wait 5 milliseconds before checking again (acts as a debounce)
+	rjmp loop
+
+; To make the first line display what was previously on the second line, we will on button press do:
+; Clear LCD; Set LCD pointer to 0x00 (Line 1); run display_line; run cycle_words; Set LCD pointer to 0x40 (Line 2); run display_line; move Z back to begining of line.
+
+; Runs on button press, Not a subroutine (accessed through branch statement in loop)
+update_text:
+	ldi R26,0x01 ; Send the Clear Display command to LCD.
+	rcall send_command
+
+	ldi R26,0x80 ; Set the DDRAM pointer to 0x00 (Start of line 1)
+	rcall send_command
+
+	rcall display_line ; Display line 1
+	rcall cycle_words
+
+	ldi R26,0xC0 ; Set the DDRAM pointer to 0x40 (Start of line 2)
+	rcall send_command
+
+	mov R28,R30 ; Store start of second line to return to
+	mov R29,R31
+	rcall display_line ; Display line 2
+	mov R30,R28 ; Set Z to what it was before now, so we can output this again next time.
+	mov R31,R29
+	rjmp loop
 
 cycle_words:
-	mov R28,R30 ; Copy the Z-register onto the Y-register.
-	mov R29,R31
 	cpi R27,6
 	breq _cycle_back ; If the word index is at 6, cycle back to 0 instead of incrementing.
 	inc R27 ; Advance the word index counter.
@@ -102,30 +132,30 @@ _cycle_back:
 	ldi R30,LOW(2*words_loop) ; Move the Z-index to the first word in the loop.
 	ldi R31,2*HIGH(words_loop)
 	ret ; Exit cycle_words subroutine.
-
-; Update the display every time that cycle_words is executed.
-update_display:
 	
 
-; Sends the text pointed to by the Y-register to the display (Y lags behind Z so Y will display what Z did on the last cycle).
-display_line1:
-	lpm R0,Y+ ; Load byte into R0.
-	tst R0 ; Does R0 = 0x00 (Null character)?
-	breq _end ; If so then exit the loop.
-	rcall send_byte
-	rjmp display_line1 ; Loop back to start
-
 ; Sends the text pointed to by the Z-register to the display.
-display_line2:
+display_line:
+	sbi PORTB,5 ; Ensure that we are in text mode, not command mode.
 	lpm R0,Z+ ; Load byte into R0.
 	tst R0 ; Does R0 = 0x00 (Null character)?
 	breq _end ; If so then exit the loop.
 	rcall send_byte
-	rjmp display_string ; Loop back to start
+	rjmp display_line ; Loop back to start
 _end:
-	ret ; Exit display_line1 or display_line2
+	ret ; Exit display_line
 
-; Sends the byte stored in R0 to the display
+; Sends a command stored in R26 to the display.
+send_command:
+	cbi PORTB,5 ; Set the LCD to command mode
+	mov R0,R26
+	rcall send_byte
+	cpi R26,0x04 ; If command is not Clear Display or Cursor Home, end here.
+	brsh _end
+	rcall delay_5ms ; Otherwise wait 5 ms to exceed the 1.64 ms safety margin.
+	ret
+
+; Sends the byte stored in R0 to the display, either for commands or for text.
 send_byte:
 	mov R16,R0 ; Send the upper nibble of R0 first.
 	swap R16
@@ -147,13 +177,41 @@ send_byte:
 	rcall delay_100us
 	ret
 
+; Sets the Enable line from low to high, waits 250 ns, then clears the Enable line back to low.
 LCD_strobe:
-	; TODO: This
+	cbi PORTB,3 ; Set Enable to low.
+	sbi PORTB,3 ; Set Enable to high.
+	nop ; 4 NOP instructions so at least 230 nanoseconds pass (about 250 ns should pass).
+	nop
+	nop
+	nop
+	cbi PORTB,3 ; Set Enable back to low
 	ret
 
+; Note: at 16 MHz, 1 clock cycle is 0.0625 microseconds (0.0625 us = 62.5 ns)
+; Therefore, 100 us is 1600 clock cycles.
+
+; Approximately 100 us delay (1606 cycles).
 delay_100us:
-	; TODO: This
+	ldi r16,255 ; 5*255 + 5*65 = 1600 cycles
+	_d1:
+		nop
+		nop
+		dec r16
+		brne _d1
+	ldi r16,65
+	_d2:
+		nop
+		nop
+		dec r16
+		brne _d2
 	ret
+
+; Approximately 5 ms delay.
 delay_5ms:
-	; TODO: This, probably use the delay_100us ~50 times
+	ldi r17,50
+	_d3:
+		rcall delay_100us
+		dec r17
+		brne _d3
 	ret
