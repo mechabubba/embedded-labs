@@ -22,6 +22,7 @@
 ; R0 is the register used when the send_byte subroutine is called.
 ; R27 is the counter used to track what word is being displayed.
 ; R26 is the register that stores the command for the send_command subroutine.
+; R26 is the button state register - bit 0 is the current button state, bit 1 is the previous button state.
 
 ; R16, R17 are temporary registers and will not preserve their value across a subroutine call (Used by send_byte, delay_100us, etc.).
 
@@ -54,6 +55,8 @@ init:
 	ldi R31,2*HIGH(words)
 
 	; Initializing the LCD Display
+	rcall delay_100ms ; Wait 0.1 seconds before sending commands to the LCD.
+
 	cbi PORTB,5 ; Setting the LCD to command mode.
 
 	in R16,PINC
@@ -87,14 +90,20 @@ init:
 	rcall delay_100us ; Wait 200 us.
 	rcall delay_100us
 
-	; INSERT REST OF INITIALIZATION HERE? 
-
 	cbi PORTC,5 ; Once initialization is complete, turn LED back on.
 
+	rjmp update_text ; Write the initial text to the display.
+
 loop:
-	sbic PIND,2 ; If button is pressed (PD2 is pulled low), go to update_text
-	rjmp update_text
-	rcall delay_5ms ; Otherwise wait 5 milliseconds before checking again (acts as a debounce)
+	; Button logic:
+	lsl R25 ; Update past button state (bit 2)
+	andi R25,0x02 ; Don't let the other 6 bits get set
+	sbis PIND,2 ; If button is pressed (PD2 is pulled low), set bit 0 of R25 to 1. Otherwise it will be 0 due to the logical shift left.
+	sbr R25,0 ; Set bit 0 to 1.
+
+	cpi R25,0x01 ; Check if button was just pressed (button is pressed now but was not pressed on the last loop).
+	breq update_text ; If so then update the text accordingly.
+	rcall delay_5ms ; Otherwise wait 5 milliseconds before checking again (acts as a debounce).
 	rjmp loop
 
 ; To make the first line display what was previously on the second line, we will on button press do:
@@ -214,4 +223,13 @@ delay_5ms:
 		rcall delay_100us
 		dec r17
 		brne _d3
+	ret
+
+; Approximately 100 ms delay.
+delay_100ms:
+	ldi r18,20
+	_d4:
+		rcall delay_5ms
+		dec r18
+		brne _d4
 	ret
