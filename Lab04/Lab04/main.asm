@@ -4,28 +4,28 @@
 ; Created: 2/27/2024 11:02:18 AM
 ; Authors: Steven Vanni, Jared Mulder
 ; Team: Team S & J
-; Description: Lab04 displays words on an LCD.
-;
+; Checkoff date: 2/29/2024
+; Description: Lab04 displays words on an LCD. There are 6 words provided, where 2 of them must be displayed, one on each line. Pressing the pushbutton
+; should advance the list of words, where the word on the second line moves to the first line, looping when the end of the list of words is reached.
+; On startup the first line should be the phrase "Press to Scroll", and the second line should be the first word in the list. A LED should be connected
+; to the chip such that once the LCD display is powered up, the LED stays on.
 
 ; Words: Artificial, Intelligence, Robotics, Machine, Learning, Neural
 
 .include "m328Pdef.inc"
-
-.equ line1 = 0x00 ; Labels for setting the LCD cursor to write on the correct line.
-.equ line2 = 0x40
 
 .cseg
 .org 0
 
 ; (R30,R31) is the Z register, for accessing the words in program memory.
 ; (R28,R29) is the Y register, which temporarily stores the state of the Z register for returning to.
-; R0 is the register used when the send_byte subroutine is called.
 ; R27 is the counter used to track what word is being displayed.
 ; R26 is the register that stores the command for the send_command subroutine.
-; R26 is the button state register - bit 0 is the current button state, bit 1 is the previous button state.
+; R25 is the button state register - bit 0 is the current button state, bit 1 is the previous button state.
+; R0 is the register used when the send_byte subroutine is called.
+; R16, R17, R18 are temporary registers and will not preserve their value across a subroutine call.
 
-; R16, R17 are temporary registers and will not preserve their value across a subroutine call (Used by send_byte, delay_100us, etc.).
-
+; List of words in memory:
 words: ; Spaces are included so that the byte count is even, since we are working in a 16-bit instruction processor
 	.DB "Press to Scroll",0x00 ; 16 bytes, This one should not reappear in the scrolling sequence
 words_loop: ; Point to send Z to on looping.
@@ -136,11 +136,11 @@ update_text:
 	mov R31,R29
 	rjmp loop
 
+; Moves the Z-index to the next word, or back to the start of the list of words if we are at the end of the list.
 cycle_words:
 	cpi R27,6
 	breq _cycle_back ; If the word index is at 6, cycle back to 0 instead of incrementing.
 	inc R27 ; Advance the word index counter.
-	;adiw Z,1 ; Advance the Z-index past the null character to the next word.
 	ret ; Exit cycle_words subroutine (without running _cycle_back).
 _cycle_back:
 	ldi R27,1 ; Set the word index counter to 1.
