@@ -53,6 +53,7 @@ init:
 	ldi R27,0 ; Set the string counter to 0.
 	ldi R30,LOW(2*words) ; Set the Z-register to the "words" label.
 	ldi R31,2*HIGH(words)
+	ldi R25,0x00 ; set button state reg to 0
 
 	; Initializing the LCD Display
 	rcall delay_100ms ; Wait 0.1 seconds before sending commands to the LCD.
@@ -99,7 +100,7 @@ loop:
 	lsl R25 ; Update past button state (bit 2)
 	andi R25,0x02 ; Don't let the other 6 bits get set
 	sbis PIND,2 ; If button is pressed (PD2 is pulled low), set bit 0 of R25 to 1. Otherwise it will be 0 due to the logical shift left.
-	sbr R25,0 ; Set bit 0 to 1.
+	ori R25,0x01 ; Set bit 0 to 1.
 
 	cpi R25,0x01 ; Check if button was just pressed (button is pressed now but was not pressed on the last loop).
 	breq update_text ; If so then update the text accordingly.
@@ -171,7 +172,7 @@ send_byte:
 	cbr R16,0xF0
 	in R17,PINC ; Place the upper nibble of PORTC into R17.
 	cbr R17,0x0F
-	and R16,R17 ; Combine R17 upper nibble and R16 lower nibble.
+	or R16,R17 ; Combine R17 upper nibble and R16 lower nibble.
 	out PORTC,R16
 	rcall LCD_strobe
 	rcall delay_100us
@@ -180,7 +181,7 @@ send_byte:
 	cbr R16,0xF0
 	in R17,PINC ; Place the upper nibble of PORTC into R17.
 	cbr R17,0x0F
-	and R16,R17 ; Combine R17 upper nibble and R16 lower nibble.
+	or R16,R17 ; Combine R17 upper nibble and R16 lower nibble.
 	out PORTC,R16
 	rcall LCD_strobe
 	rcall delay_100us
