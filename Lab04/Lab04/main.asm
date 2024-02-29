@@ -91,6 +91,11 @@ init:
 	rcall delay_100us ; Wait 200 us.
 	rcall delay_100us
 
+	ldi R26,0x28 ; Set LCD to 4-bit, 2-line 5x7-dot format.
+	rcall send_command
+	ldi R26,0x06 ; Set entry mode to Increment,Shift-off format.
+	rcall send_command
+
 	cbi PORTC,5 ; Once initialization is complete, turn LED back on.
 
 	rjmp update_text ; Write the initial text to the display.
@@ -135,7 +140,7 @@ cycle_words:
 	cpi R27,6
 	breq _cycle_back ; If the word index is at 6, cycle back to 0 instead of incrementing.
 	inc R27 ; Advance the word index counter.
-	adiw Z,1 ; Advance the Z-index past the null character to the next word.
+	;adiw Z,1 ; Advance the Z-index past the null character to the next word.
 	ret ; Exit cycle_words subroutine (without running _cycle_back).
 _cycle_back:
 	ldi R27,1 ; Set the word index counter to 1.
