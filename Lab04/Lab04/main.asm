@@ -104,6 +104,7 @@ init:
 	rcall send_command
 	ldi R30,LOW(2*custom_1) ; Set the Z-register to the "custom_1" label.
 	ldi R31,2*HIGH(custom_1)
+	sbi PORTB,5
 	ldi R16,8
 	_ec1:
 		lpm R0,Z+
@@ -115,6 +116,7 @@ init:
 	rcall send_command
 	ldi R30,LOW(2*custom_1) ; Set the Z-register to the "custom_2" label.
 	ldi R31,2*HIGH(custom_1)
+	sbi PORTB,5
 	ldi R16,8
 	_ec2:
 		lpm R0,Z+
@@ -124,6 +126,9 @@ init:
 
 	ldi R30,LOW(2*words) ; Set the Z-register to the "words" label.
 	ldi R31,2*HIGH(words)
+
+	ldi R26,0x00 ; maybe?
+	rcall send_command
 
 	cbi PORTC,5 ; Once initialization is complete, turn LED back on.
 
