@@ -33,10 +33,15 @@ words_loop: ; Point to send Z to on looping.
 	.DB "Intelligence ",0x00 ; 14 bytes
 	.DB "Robotics ",0x00 ; 10 bytes
 	.DB "Machine",0x00 ; 8 bytes
-	.DB "Learning ",0x00 ; 10 bytes
-	.DB "Neural ",0x00 ; 8 bytes
+	.DB "Learning",0x0F,0x00 ; 10 bytes, contains the smiley face custom character.
+	.DB "Neural",0x0E,0x00 ; 8 bytes, contains the sad face custom character.
 ; The 0x00 following each string is a null character being added as the final byte, making the strings even and serving as a sentinel character like in C.
 ; There are 7 words, including the "Press to Scroll" statement. Therefore the index will start at 0, and loop to 1 after going to 6.
+
+custom_1: ; Smiley face custom character
+	.DB 0x00,0x0A,0x0A,0x00,0x11,0x0E,0x00,0x00
+custom_2: ; Sad face custom character
+	.DB 0x00,0x0A,0x0A,0x00,0x0E,0x11,0x00,0x00
 
 init:
 	sbi DDRB,3 ; pb5 (enable) is output
@@ -51,8 +56,6 @@ init:
 	sbi PORTC,5 ; Turn LED off until initialization is complete.
 
 	ldi R27,0 ; Set the string counter to 0.
-	ldi R30,LOW(2*words) ; Set the Z-register to the "words" label.
-	ldi R31,2*HIGH(words)
 	ldi R25,0x00 ; set button state reg to 0
 
 	; Initializing the LCD Display
@@ -95,6 +98,32 @@ init:
 	rcall send_command
 	ldi R26,0x06 ; Set entry mode to Increment,Shift-off format.
 	rcall send_command
+
+	; Extra Credit:
+	ldi R26,0x4F ; Set the character 0x0F to the smiley face
+	rcall send_command
+	ldi R30,LOW(2*custom_1) ; Set the Z-register to the "custom_1" label.
+	ldi R31,2*HIGH(custom_1)
+	ldi R16,8
+	_ec1:
+		lpm R0,Z+
+		rcall send_byte
+		dec R16
+		brne _ec1
+
+	ldi R26,0x4E ; Set the character 0x0F to the sad face
+	rcall send_command
+	ldi R30,LOW(2*custom_1) ; Set the Z-register to the "custom_2" label.
+	ldi R31,2*HIGH(custom_1)
+	ldi R16,8
+	_ec2:
+		lpm R0,Z+
+		rcall send_byte
+		dec R16
+		brne _ec2
+
+	ldi R30,LOW(2*words) ; Set the Z-register to the "words" label.
+	ldi R31,2*HIGH(words)
 
 	cbi PORTC,5 ; Once initialization is complete, turn LED back on.
 
