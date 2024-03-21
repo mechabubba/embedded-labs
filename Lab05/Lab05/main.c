@@ -12,6 +12,9 @@
 #define F_CPU 16000000UL //16 MHz clock speed assigned for the ATmega328P.
 #endif
 
+void lcd_writeByte(char b);
+void lcd_strobe();
+
 int main(void)
 {
     /* Replace with your application code */
@@ -39,6 +42,6 @@ void lcd_strobe() {
 	PORTB ^= 0x08; //Clear PB3.
 	PORTB |= 0x08; //Set PB3 (Enable).
 	_delay_loop_1(2); //2 iteration delay loop guarantees at least 6 clock cycles pass, which is over 230ns.
-	PORTB ^- 0x08; //Clear PB3 (Enable).
+	PORTB ^= 0x08; //Clear PB3 (Enable).
 }
 
