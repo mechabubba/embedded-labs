@@ -19,6 +19,7 @@
 
 //Function Prototypes:
 void checkRPG(void);
+void showDutyCycle(void);
 void lcd_sendText(char text[], uint8_t length);
 void lcd_sendCommand(char command);
 void lcd_writeByte(const char b);
@@ -26,7 +27,7 @@ void lcd_strobe(void);
 void lcd_initialize(void);
 
 //Global variables (SRAM):
-uint8_t compare = 100;
+uint8_t compare = 50;
 
 ISR(TIMER0_OVF_vect) { //Timer0 overflow interrupt.
 	OCR0B = compare; //Assign new PWM compare value.
@@ -34,6 +35,10 @@ ISR(TIMER0_OVF_vect) { //Timer0 overflow interrupt.
 
 int main(void) {
 	clock_prescale_set(clock_div_2); //Scale down system clock to 8 MHz.
+	DDRD |= (1 << PORTD5);
+	DDRC = 0x0F;
+	DDRB |= (1 << PORTB3);
+	DDRB |= (1 << PORTB5);
 	
 	TCCR0B |= (1 << WGM02); //Set timer0 to mode 5.
 	TCCR0A &= ~(1 << WGM01);
@@ -42,8 +47,11 @@ int main(void) {
 	TCCR0A |= (1 << COM0B1); //Set the OC0B flag to be used for comparing.
 	TCCR0A |= (1 << COM0B0);
 	
-	OCR0A = 200; //Set the TOP value to 200.
 	TIMSK0 |= (1 << TOIE0); //Enable the overflow interrupt for timer0.
+	OCR0A = 200u; //Set the TOP value to 200.
+	OCR0B = 50u; //Set initial COMPARE value to 100.
+	TCCR0B |= (1 << CS00); //Turn on the clock with no pre-scaling.
+	
 	lcd_initialize(); //Initialize the LCD.
 	
 	sei(); //Enable interrupts.
@@ -63,11 +71,14 @@ void checkRPG(void) {
 	if (bit_is_set(PORTB,PORTB1)) compare++;
 	if (bit_is_set(PORTB,PORTB0)) compare--;
 	if (compare > 200) compare = 200;
+	if (compare < 0) compare = 0;
 }
 
 void showDutyCycle(void) {
 	lcd_sendCommand(0x01); //Clear the display.
-	lcd_sendCommand(0xC0); //
+	
+	lcd_sendCommand(0xC0); //Move text pointer to 40
+	lcd_sendText("Duty cycle = ",13);
 }
 
 void lcd_sendText(char text[], uint8_t length) {
