@@ -9,29 +9,55 @@
 
 #include <avr/io.h>
 #include <util/delay_basic.h>
+#include <avr/sfr_defs.h>
+#include <avr/interrupt.h>
 
 #ifdef F_CPU
 #define F_CPU 16000000UL //16 MHz clock speed assigned for the ATmega328P.
 #endif
 
 //Function Prototypes:
-void lcd_sendText(char text[], int length);
+void checkRPG(void);
+void lcd_sendText(char text[], uint8_t length);
 void lcd_sendCommand(char command);
 void lcd_writeByte(const char b);
 void lcd_strobe(void);
 void lcd_initialize(void);
 
-int main(void)
-{
+//Global variables:
+uint8_t compare = 0;
+
+ISR(TIMER0_OVF_vect) { //Timer0 overflow interrupt.
+	OCR0B = compare; //Assign new PWM compare value.
+}
+
+int main(void) {
+	TCCR0B |= (1 << WGM02);
+	TCCR0A &= ~(1 << WGM01);
+	TCCR0A |= (1 << WGM00);
 	lcd_initialize();
-    while (1) 
-    {
+	
+    while (1) {
+		checkRPG();
     }
 }
 
-void lcd_sendText(char text[], int length) {
+/* 20 KHz loop with resolution of <=0.75%
+ * 1 / 0.0075 = 133.3 -> TOP > 134
+ * TOP = 200 -> (16 MHz / 8) / 200 = 10 KHz <- Scale clock timer down by 8.
+ * Resolution = 1/200 = 0.5%
+ */
+
+void checkRPG(void) {
+	if (bit_is_set(PORTB,1)) compare++;
+	if (bit_is_set(PORTB,0)) compare--;
+	if (compare > 200) compare = 200;
+}
+
+
+void lcd_sendText(char text[], uint8_t length) {
 	PORTB |= (1 << 5); //Set RS to data mode.
-	for (int i = 0; i < length; i++) {
+	for (uint8_t i = 0; i < length; i++) {
 		lcd_writeByte(text[i]); //Send each character in text[] one at a time.
 	}
 }
