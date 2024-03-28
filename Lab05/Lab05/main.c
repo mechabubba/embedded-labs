@@ -14,11 +14,12 @@
 #define F_CPU 16000000UL //16 MHz clock speed assigned for the ATmega328P.
 #endif
 
+//Function Prototypes:
 void lcd_sendText(char text[], int length);
 void lcd_sendCommand(char command);
-void lcd_writeByte(char b);
-void lcd_strobe();
-void lcd_initialize();
+void lcd_writeByte(const char b);
+void lcd_strobe(void);
+void lcd_initialize(void);
 
 int main(void)
 {
@@ -43,7 +44,7 @@ void lcd_sendCommand(char command) {
 	}
 }
 
-void lcd_writeByte(char b) {
+void lcd_writeByte(const char b) {
 	char tmp = b & 0xF0; //Set upper nibble of tmp to upper nibble of b.
 	tmp >>= 4; //Swap upper and lower nibble of tmp. I don't know if we have access to a method like SWAP, so this might be slow.
 	char pcUpper = PORTC & 0xF0; //Store the upper nibble of PORTC.
@@ -58,14 +59,14 @@ void lcd_writeByte(char b) {
 	_delay_loop_1(214); //214 iterations >= 642 clock cycles > 40us (For standard commands and text entry).
 }
 
-void lcd_strobe() {
+void lcd_strobe(void) {
 	PORTB &= ~(1 << 3); //Clear PB3.
 	PORTB |= (1 << 3); //Set PB3 (Enable).
 	_delay_loop_1(2); //2 iteration delay loop guarantees at least 6 clock cycles pass, which is over 230ns.
 	PORTB &= ~(1 << 3); //Clear PB3 (Enable).
 }
 
-void lcd_initialize() {
+void lcd_initialize(void) {
 	for (int i = 0; i < 6; i++) {
 		_delay_loop_2(0);
 	}
