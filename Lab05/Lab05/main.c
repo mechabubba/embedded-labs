@@ -97,18 +97,19 @@ void lcd_sendCommand(char command) {
 }
 
 void lcd_writeByte(const char b) {
+	asm volatile ("");
 	char tmp = b & 0xF0; //Set upper nibble of tmp to upper nibble of b.
 	tmp >>= 4; //Swap upper and lower nibble of tmp. I don't know if we have access to a method like SWAP, so this might be slow.
 	char pcUpper = PORTC & 0xF0; //Store the upper nibble of PORTC.
 	PORTC = pcUpper | tmp; //Write upper nibble of b to the output.
 	lcd_strobe(); //Strobe the enable line, then run the 0.5us delay.
-	_delay_loop_1(3); //3 iterations >= 9 clock cycles > 0.5us.
+	_delay_loop_2(200); //100 us delay.
 	
 	tmp = b * 0x0F; //Set lower nibble of tmp to lower nibble of b.
 	pcUpper = PORTC & 0xF0; //Store the upper nibble of PORTC again.
 	PORTC = pcUpper | tmp; //Write lower bits of b to the output.
 	lcd_strobe();
-	_delay_loop_1(214); //214 iterations >= 642 clock cycles > 40us (For standard commands and text entry).
+	_delay_loop_2(200); //100 us delay.
 }
 
 void lcd_strobe(void) {
