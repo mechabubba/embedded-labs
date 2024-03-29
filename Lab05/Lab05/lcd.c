@@ -27,7 +27,7 @@
 #include <avr/pgmspace.h>
 #include "lcd.h"
 
-
+#define SMWS // "Steven Messing With Stuff". comment this out to revert to normal mode
 
 /* 
 ** constants/macros 
@@ -42,7 +42,13 @@
 
 
 #if LCD_IO_MODE
+
+#ifdef SMWS
 #define lcd_e_delay()   __asm__ __volatile__( "rjmp 1f\n 1:" );   //#define lcd_e_delay() __asm__ __volatile__( "rjmp 1f\n 1: rjmp 2f\n 2:" );
+#else
+#define lcd_e_delay() __asm__ __volatile__("nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t");
+#endif
+
 #define lcd_e_high()    LCD_E_PORT  |=  _BV(LCD_E_PIN);
 #define lcd_e_low()     LCD_E_PORT  &= ~_BV(LCD_E_PIN);
 #define lcd_e_toggle()  toggle_e()
@@ -553,7 +559,13 @@ void lcd_init(uint8_t dispAttr)
         DDR(LCD_DATA2_PORT) |= _BV(LCD_DATA2_PIN);
         DDR(LCD_DATA3_PORT) |= _BV(LCD_DATA3_PIN);
     }
-    delay(16000);        /* wait 16ms or more after power-on       */
+#ifdef SMWS
+	// this is a DIRECT PORT of the initialization routine from lecture slides.
+	// other things have changed in this file along with this define...
+	delay(100000); // wait 0.1s
+#else
+    delay(160000);        /* wait 16ms or more after power-on       */
+#endif
     
     /* initial write to lcd is 8bit */
     LCD_DATA1_PORT |= _BV(LCD_DATA1_PIN);  // _BV(LCD_FUNCTION)>>4;
@@ -563,16 +575,28 @@ void lcd_init(uint8_t dispAttr)
    
     /* repeat last command */ 
     lcd_e_toggle();      
+#ifdef SMWS
+	delay(200);
+#else
     delay(64);           /* delay, busy flag can't be checked here */
+#endif
     
     /* repeat last command a third time */
     lcd_e_toggle();      
-    delay(64);           /* delay, busy flag can't be checked here */
+#ifdef SMWS
+	delay(200);
+#else
+	delay(64);           /* delay, busy flag can't be checked here */
+#endif
 
     /* now configure for 4bit mode */
     LCD_DATA0_PORT &= ~_BV(LCD_DATA0_PIN);   // LCD_FUNCTION_4BIT_1LINE>>4
     lcd_e_toggle();
-    delay(64);           /* some displays need this additional delay */
+#ifdef SMWS
+	delay(200);
+#else
+	delay(64);           /* delay, busy flag can't be checked here */
+#endif
     
     /* from now the LCD only accepts 4 bit I/O, we can use lcd_command() */    
 #else
