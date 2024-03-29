@@ -14,13 +14,6 @@
 #include <avr/interrupt.h>
 #include "lcd.h"
 
-// redefining some things from lcd.h...
-// this creates some warnings. ignore them
-#define LCD_RS_PORT PORTB
-#define LCD_RS_PIN PINB5
-#define LCD_E_PORT PORTB
-#define LCD_E_PIN PINB3
-
 #ifdef F_CPU
 #define F_CPU 16000000UL //16 MHz clock speed assigned for the ATmega328P.
 #endif
@@ -59,7 +52,7 @@ int main(void) {
 
 	lcd_init(LCD_DISP_ON); // initialize lcd
 	lcd_clrscr();
-	lcd_puts("hello :)");
+	lcd_puts("(=_=)\"");
 	
 	sei(); //Enable interrupts.
     while (1) {
