@@ -15,7 +15,7 @@
 #include "lcd.h"
 
 #ifdef F_CPU
-#define F_CPU 16000000UL //16 MHz clock speed assigned for the ATmega328P.
+#define F_CPU 8000000UL //16 MHz clock speed assigned for the ATmega328P.
 #endif
 
 //Function Prototypes:
@@ -24,6 +24,7 @@ void showDutyCycle(void);
 
 //Global variables (SRAM):
 uint8_t compare = 50;
+char* poop;
 
 ISR(TIMER0_OVF_vect) { //Timer0 overflow interrupt.
 	OCR0B = compare; //Assign new PWM compare value.
@@ -52,12 +53,15 @@ int main(void) {
 
 	lcd_init(LCD_DISP_ON); // initialize lcd
 	lcd_clrscr();
-	lcd_puts("(=_=)\"");
 	
 	sei(); //Enable interrupts.
+	uint8_t i = 0; // temp
     while (1) {
 		checkRPG();
-		showDutyCycle();
+		if(i == 0) {
+			showDutyCycle();
+		}
+		i++;
     }
 }
 
@@ -75,9 +79,6 @@ void checkRPG(void) {
 }
 
 void showDutyCycle(void) {
-	//lcd_sendCommand(0x01); //Clear the display.
-	//lcd_sendCommand(0xC0); //Move text pointer to 40
-	//lcd_clrscr();
-	//lcd_home();
-	//lcd_puts_p("Duty cycle = smth");
+	lcd_clrscr();
+	lcd_puts(itoa(compare, poop, 10));
 }
