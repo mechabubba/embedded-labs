@@ -14,8 +14,6 @@
 #include <avr/interrupt.h>
 #include "lcd.h"
 
-// redefining some things from lcd.h...
-// this creates some warnings. ignore them
 #define LCD_RS_PORT PORTB
 #define LCD_RS_PIN PINB5
 #define LCD_E_PORT PORTB
@@ -28,6 +26,11 @@
 //Function Prototypes:
 void checkRPG(void);
 void showDutyCycle(void);
+//void lcd_sendText(char text[], uint8_t length);
+//void lcd_sendCommand(char command);
+//void lcd_writeByte(const char b);
+//void lcd_strobe(void);
+//void lcd_initialize(void);
 
 //Global variables (SRAM):
 uint8_t compare = 50;
@@ -38,12 +41,10 @@ ISR(TIMER0_OVF_vect) { //Timer0 overflow interrupt.
 
 int main(void) {
 	clock_prescale_set(clock_div_2); //Scale down system clock to 8 MHz.
-	
-	// data direction;
-	DDRD |= (1 << PORTD5); // pin d5 (pwm) is output
-	DDRC = 0x0F;           // first four port c pins are output
-	DDRB |= (1 << PORTB3); // pin b3 (lcd e) is output
-	DDRB |= (1 << PORTB5); // pin b5 (lcd rs) is output
+	DDRD |= (1 << PORTD5);
+	DDRC = 0x0F;
+	DDRB |= (1 << PORTB3);
+	DDRB |= (1 << PORTB5);
 	
 	TCCR0B |= (1 << WGM02); //Set timer0 to mode 5.
 	TCCR0A &= ~(1 << WGM01);
@@ -56,10 +57,9 @@ int main(void) {
 	OCR0A = 200u; //Set the TOP value to 200.
 	OCR0B = 50u; //Set initial COMPARE value to 100.
 	TCCR0B |= (1 << CS00); //Turn on the clock with no pre-scaling.
-
-	lcd_init(LCD_DISP_ON); // initialize lcd
-	lcd_clrscr();
-	lcd_puts("hello :)");
+	
+	//lcd_initialize(); //Initialize the LCD.
+	lcd_init(LCD_DISP_ON);
 	
 	sei(); //Enable interrupts.
     while (1) {
@@ -84,7 +84,7 @@ void checkRPG(void) {
 void showDutyCycle(void) {
 	//lcd_sendCommand(0x01); //Clear the display.
 	//lcd_sendCommand(0xC0); //Move text pointer to 40
-	//lcd_clrscr();
-	//lcd_home();
-	//lcd_puts_p("Duty cycle = smth");
+	lcd_clrscr();
+	lcd_home();
+	lcd_puts_p("Duty cycle = smth");
 }
