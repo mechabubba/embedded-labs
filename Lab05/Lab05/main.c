@@ -15,16 +15,35 @@
 #include "lcd.h"
 
 #ifdef F_CPU
-#define F_CPU 8000000UL //16 MHz clock speed assigned for the ATmega328P.
+#define F_CPU 8000000UL //16 MHz clock speed assigned for the ATmega328P, divided by 2 for the scaling.
 #endif
 
 //Function Prototypes:
 void checkRPG(void);
-void showDutyCycle(void);
+void updateLCD(void);
+
+//Global constants (Program Memory):
+const char okText[] PROGMEM = "Fan OK";
+const char warnText[] PROGMEM = "Low RPM";
+const char stallText[] PROGMEM = "Fan Stalled";
 
 //Global variables (SRAM):
-uint8_t compare = 50;
+uint8_t compare = 50; //Compare value, complement to the PWM percentage.
+uint16_t tachometer = 0;
 char* poop;
+
+ISR(INT1_vect) { //External Interrupt 1 (Tachometer).
+	TCCR1B &= ~0x03; //Turn off the clock.
+	//uint8_t sreg = SREG;
+	tachometer = TCNT1; //Collect time period.
+	TCNT1 = 0x0000; //Reset timer.
+	TCCR1B |= 0x03; //Turn clock back on.
+	
+}
+//We can imagine that the fan RPM can range anywhere from 60 to 6000 RPM, where <60 RPM would likely be a stall condition.
+//This equates to 1 to 100 Hz (Revolutions per second). At 8 MHz, this means 4 million half-cycles can occur in the worst case.
+//If we divide Timer1 by 64, that gets us to a worst case of 62500 half-cycles, which can just barely fit within the 16-bit counter space of 65535.
+//We can then assume that if the 16-bit counter hits its max value, a stall condition has been met.  
 
 ISR(TIMER0_OVF_vect) { //Timer0 overflow interrupt.
 	OCR0B = compare; //Assign new PWM compare value.
@@ -33,35 +52,30 @@ ISR(TIMER0_OVF_vect) { //Timer0 overflow interrupt.
 int main(void) {
 	clock_prescale_set(clock_div_2); //Scale down system clock to 8 MHz.
 	
-	// data direction;
+	//Data direction:
 	DDRD |= (1 << PORTD5); // pin d5 (pwm) is output
 	DDRC = 0x0F;           // first four port c pins are output
 	DDRB |= (1 << PORTB3); // pin b3 (lcd e) is output
 	DDRB |= (1 << PORTB5); // pin b5 (lcd rs) is output
 	
+	//Timer0 setup:
 	TCCR0B |= (1 << WGM02); //Set timer0 to mode 5.
 	TCCR0A &= ~(1 << WGM01);
 	TCCR0A |= (1 << WGM00);
-	
 	TCCR0A |= (1 << COM0B1); //Set the OC0B flag to be used for comparing.
 	TCCR0A |= (1 << COM0B0);
-	
 	TIMSK0 |= (1 << TOIE0); //Enable the overflow interrupt for timer0.
 	OCR0A = 200u; //Set the TOP value to 200.
 	OCR0B = 50u; //Set initial COMPARE value to 100.
 	TCCR0B |= (1 << CS00); //Turn on the clock with no pre-scaling.
 
-	lcd_init(LCD_DISP_ON); // initialize lcd
+
+	lcd_init(LCD_DISP_ON); //Initialize the LCD.
 	lcd_clrscr();
 	
 	sei(); //Enable interrupts.
-	uint8_t i = 0; // temp
     while (1) {
 		checkRPG();
-		if(i == 0) {
-			showDutyCycle();
-		}
-		i++;
     }
 }
 
@@ -78,7 +92,7 @@ void checkRPG(void) {
 	if (compare < 0) compare = 0;
 }
 
-void showDutyCycle(void) {
+void updateLCD(void) {
 	lcd_clrscr();
 	lcd_puts(itoa(compare, poop, 10));
 }
