@@ -12,6 +12,7 @@
 #include <util/delay_basic.h>
 #include <avr/sfr_defs.h>
 #include <avr/interrupt.h>
+#include <stdio.h>
 #include "lcd.h"
 
 #ifdef F_CPU
@@ -74,6 +75,8 @@ int main(void) {
 	OCR0B = 50u; //Set initial COMPARE value to 100.
 	TCCR0B |= (1 << CS00); //Turn on the clock with no pre-scaling.
 
+	EICRA |= (1 << ISC11); //Turn on int1 on falling edge.
+	TCCR1B |= 0x03; //Turn on tachometer clock.
 
 	lcd_init(LCD_DISP_ON); //Initialize the LCD.
 	lcd_clrscr();
@@ -94,25 +97,32 @@ int main(void) {
  */
 
 void checkRPG(void) {
-	if (bit_is_set(PINB,PINB1) ^ (rpgState & 0x01)) compare++; //Clockwise check - does PB1 not equal PB0 previous state?
-	if (bit_is_set(PINB,PINB0) ^ (rpgState >> 1 & 0x01)) compare--; //Counterclockwise check - does PB0 not equal PB1 previous state?
+	if ((PINB & 0x03) == 0x03) {
+		if (bit_is_set(PINB,PINB1) ^ (rpgState & 0x01)) {
+			compare++; //Clockwise check - does PB1 not equal PB0 previous state?
+		}
+		if (bit_is_set(PINB,PINB0) ^ (rpgState >> 1 & 0x01)) {
+			compare--; //Counterclockwise check - does PB0 not equal PB1 previous state?
+		}
+	}
 	//If both bits have changed, we cannot know which way the RPG has rotated so they should cancel out.
 	if (compare > 200) compare = 200;
-	if (compare < 0) compare = 0; //Compare is an unsigned 8-bit, so this comparison may be non-functional.
+	if (compare < 1) compare = 1; //Compare is an unsigned 8-bit, so this comparison may be non-functional.
 	rpgState = PINB & 0x02; //Store the current RPG pins for the next cycle.
 }
 
 void updateLCD(void) {
 	if (bit_is_clear(PIND,PIND2)) displayState = displayState ? 0 : 1; //Ternary operator to toggle the state variable.
-	float rpm = 7500000/(2*tachometer); //Probably a bad idea, but should convert the tachometer reading into a RPM float value.
+	float rpm = 7500000.0f / (2.0f * (float)tachometer); //Probably a bad idea, but should convert the tachometer reading into a RPM float value.
 	
 	lcd_clrscr();
 	lcd_home();
-	sprintf(buffer,"RPM = %.0f",rpm);
+	sprintf(buffer,"RPM = %u",tachometer);
 	lcd_puts(buffer); //Display RPM.
 	lcd_gotoxy(0,1);
 	if (displayState) {
-		sprintf(buffer,"Duty cycle = %u%%",compare);
+		uint8_t cReal = compare >> 1;
+		sprintf(buffer,"%u%% Duty Cycle", cReal);
 		lcd_puts(buffer); //State 1 - display duty cycle.
 	} else {
 		if (rpm < 60) { //Stall condition.
