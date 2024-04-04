@@ -117,7 +117,7 @@ void updateLCD(void) {
 	} else {
 		if (rpm < 60) { //Stall condition.
 			lcd_puts(stallText);
-		} else if (rpm < 1000) { //Warn about possible stall.
+		} else if (rpm < 2400) { //Low RPM warning.
 			lcd_puts(warnText);
 		} else { //Fan is operating normally.
 			lcd_puts(okText);
