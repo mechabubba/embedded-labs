@@ -30,8 +30,9 @@ const char stallText[] PROGMEM = "Fan Stalled";
 //Global variables (SRAM):
 uint8_t compare = 50; //Compare value, equal to PWM percentage.
 uint16_t tachometer = 0;
-bool displayState = 0; //State value (0-1), state 0 is status mode and state 1 is duty cycle mode (for LCD).
-char* buffer;
+uint8_t rpgState = 0x00; //Stores the last known state of the RPG pins for comparison.
+uint8_t displayState = 0; //State value (0-1), state 0 is status mode and state 1 is duty cycle mode (for LCD).
+char buffer[18]; //Largest string to be stored in buffer would be "Duty Cycle = XYZ%", which is 18 chars, including the null terminator.
 
 ISR(INT1_vect) { //External Interrupt 1 (Tachometer).
 	TCCR1B &= ~0x03; //Turn off the clock.
@@ -59,6 +60,8 @@ int main(void) {
 	DDRC = 0x0F;           // first four port c pins are output
 	DDRB |= (1 << PORTB3); // pin b3 (lcd e) is output
 	DDRB |= (1 << PORTB5); // pin b5 (lcd rs) is output
+	DDRB &= ~(1 << PINB0); // pin b0 (RPG) is input
+	DDRB &= ~(1 << PINB1); // pin b1 (RPG) is input
 	
 	//Timer0 setup:
 	TCCR0B |= (1 << WGM02); //Set timer0 to mode 5.
@@ -91,21 +94,34 @@ int main(void) {
  */
 
 void checkRPG(void) {
-	if (bit_is_set(PORTB,PORTB1)) compare++;
-	if (bit_is_set(PORTB,PORTB0)) compare--;
+	if (bit_is_set(PINB,PINB1) ^ (rpgState & 0x01)) compare++; //Clockwise check - does PB1 not equal PB0 previous state?
+	if (bit_is_set(PINB,PINB0) ^ (rpgState >> 1 & 0x01)) compare--; //Counterclockwise check - does PB0 not equal PB1 previous state?
+	//If both bits have changed, we cannot know which way the RPG has rotated so they should cancel out.
 	if (compare > 200) compare = 200;
-	if (compare < 0) compare = 0;
+	if (compare < 0) compare = 0; //Compare is an unsigned 8-bit, so this comparison may be non-functional.
+	rpgState = PINB & 0x02; //Store the current RPG pins for the next cycle.
 }
 
 void updateLCD(void) {
-	if (bit_is_clear(PORTD,PORTD2)) displayState = displayState ? 0 : 1; //Ternary operator to toggle the state variable.
+	if (bit_is_clear(PIND,PIND2)) displayState = displayState ? 0 : 1; //Ternary operator to toggle the state variable.
+	float rpm = 7500000/(2*tachometer); //Probably a bad idea, but should convert the tachometer reading into a RPM float value.
+	
 	lcd_clrscr();
 	lcd_home();
-	lcd_puts(itoa(compare, buffer, 10)); //Display RPM.
+	sprintf(buffer,"RPM = %.0f",rpm);
+	lcd_puts(buffer); //Display RPM.
 	lcd_gotoxy(0,1);
 	if (displayState) {
-		lcd_puts(itoa(compare, buffer, 10)); //State 1 - display duty cycle.
+		sprintf(buffer,"Duty cycle = %u%%",compare);
+		lcd_puts(buffer); //State 1 - display duty cycle.
 	} else {
+		if (rpm < 60) { //Stall condition.
+			lcd_puts(stallText);
+		} else if (rpm < 1000) { //Warn about possible stall.
+			lcd_puts(warnText);
+		} else { //Fan is operating normally.
+			lcd_puts(okText);
+		}
 		//State 0 - display fan status.
 	}
 }
