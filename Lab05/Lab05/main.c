@@ -35,6 +35,8 @@ uint8_t rpgState = 0x00; //Stores the last known state of the RPG pins for compa
 uint8_t displayState = 0; //State value (0-1), state 0 is status mode and state 1 is duty cycle mode (for LCD).
 char buffer[18]; //Largest string to be stored in buffer would be "Duty Cycle = XYZ%", which is 18 chars, including the null terminator.
 
+
+////TODO: Fix tachometer code, probably just use floats for most of the calculations.
 ISR(INT1_vect) { //External Interrupt 1 (Tachometer).
 	TCCR1B &= ~0x03; //Turn off the clock.
 	//uint8_t sreg = SREG;
@@ -97,18 +99,13 @@ int main(void) {
  */
 
 void checkRPG(void) {
-	if ((PINB & 0x03) == 0x03) {
-		if (bit_is_set(PINB,PINB1) ^ (rpgState & 0x01)) {
-			compare++; //Clockwise check - does PB1 not equal PB0 previous state?
-		}
-		if (bit_is_set(PINB,PINB0) ^ (rpgState >> 1 & 0x01)) {
-			compare--; //Counterclockwise check - does PB0 not equal PB1 previous state?
-		}
+	if ((PINB & 0x03) == 0x03) { //If pin state is on detent (b11 position), then previous state should be either 01 or 10.
+		if (rpgState == 0x01) compare++; //If previous state was b01, then we moved clockwise.
+		else if (rpgState == 0x02) compare--; //If previous state was b10, then we moved counterclockwise.
 	}
-	//If both bits have changed, we cannot know which way the RPG has rotated so they should cancel out.
-	if (compare > 200) compare = 200;
-	if (compare < 1) compare = 1; //Compare is an unsigned 8-bit, so this comparison may be non-functional.
-	rpgState = PINB & 0x02; //Store the current RPG pins for the next cycle.
+	if (compare == 255) compare = 0; //Underflow catch.
+	else if (compare > 200) compare = 200; //Overflow catch.
+	rpgState = PINB & 0x03; //Store the current RPG pins for the next cycle.
 }
 
 void updateLCD(void) {
@@ -119,12 +116,12 @@ void updateLCD(void) {
 	lcd_home();
 	sprintf(buffer,"RPM = %u",tachometer);
 	lcd_puts(buffer); //Display RPM.
+	
 	lcd_gotoxy(0,1);
-	if (displayState) {
-		uint8_t cReal = compare >> 1;
-		sprintf(buffer,"%u%% Duty Cycle", cReal);
-		lcd_puts(buffer); //State 1 - display duty cycle.
-	} else {
+	if (displayState) { //State 1 - display duty cycle.
+		sprintf(buffer,"%u%% Duty Cycle", compare >> 1); //shift compare left by 1 as it is 0.5% unit steps.
+		lcd_puts(buffer);
+	} else { //State 0 - display fan status.
 		if (rpm < 60) { //Stall condition.
 			lcd_puts(stallText);
 		} else if (rpm < 2400) { //Low RPM warning.
@@ -132,6 +129,6 @@ void updateLCD(void) {
 		} else { //Fan is operating normally.
 			lcd_puts(okText);
 		}
-		//State 0 - display fan status.
+		
 	}
 }
