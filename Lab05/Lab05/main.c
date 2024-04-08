@@ -21,6 +21,7 @@
 
 //Function Prototypes:
 void checkRPG(void);
+void checkButton(void);
 void updateLCD(void);
 
 //Global constants (Program Memory):
@@ -32,6 +33,8 @@ const char stallText[] PROGMEM = "Fan Stalled";
 uint8_t compare = 50; //Compare value, equal to PWM percentage.
 uint16_t tachometer = 0;
 uint8_t rpgState = 0x00; //Stores the last known state of the RPG pins for comparison.
+
+uint8_t buttonState = 0; //Used for reading a toggle of the button.
 uint8_t displayState = 0; //State value (0-1), state 0 is status mode and state 1 is duty cycle mode (for LCD).
 char buffer[18]; //Largest string to be stored in buffer would be "Duty Cycle = XYZ%", which is 18 chars, including the null terminator.
 
@@ -87,6 +90,7 @@ int main(void) {
 	sei(); //Enable interrupts.
     while (1) {
 		checkRPG();
+		checkButton();
 		if (refresh == 0) updateLCD(); //LCD is only updated every 256 cycles to increase visibility.
 		refresh++;
     }
@@ -108,8 +112,19 @@ void checkRPG(void) {
 	rpgState = PINB & 0x03; //Store the current RPG pins for the next cycle.
 }
 
+void checkButton(void) {
+	uint8_t avg = 127;
+	for (uint8_t i = 0; i < 11; i++) {
+		if (bit_is_clear(PIND,PIND2)) avg++;
+		else avg--;
+	}
+	buttonState <<= 1;
+	buttonState &= 0x02;
+	if (avg > 127) buttonState |= 0x01;
+	if (buttonState == 0x01) displayState = displayState ? 0 : 1; //Ternary operator to toggle the state variable.
+}
+
 void updateLCD(void) {
-	if (bit_is_clear(PIND,PIND2)) displayState = displayState ? 0 : 1; //Ternary operator to toggle the state variable.
 	float rpm = 7500000.0f / (2.0f * (float)tachometer); //Probably a bad idea, but should convert the tachometer reading into a RPM float value.
 	
 	lcd_clrscr();
