@@ -24,13 +24,8 @@ void checkRPG(void);
 void checkButton(void);
 void updateLCD(void);
 
-//Global constants (Program Memory):
-const char okText[] PROGMEM = "Fan OK";
-const char warnText[] PROGMEM = "Low RPM";
-const char stallText[] PROGMEM = "Fan Stalled";
-
 //Global variables (SRAM):
-uint8_t compare = 50; //Compare value, equal to PWM percentage.
+uint8_t compare = 150; //Compare value, equal to PWM percentage.
 uint16_t tachometer = 0;
 uint8_t rpgState = 0x00; //Stores the last known state of the RPG pins for comparison.
 
@@ -43,11 +38,12 @@ uint8_t isBuzzerOn = 0;   // whether or not the buzzer is on (i love languages w
 
 ////TODO: Fix tachometer code, probably just use floats for most of the calculations.
 ISR(INT1_vect) { //External Interrupt 1 (Tachometer).
+	cli();
 	TCCR1B &= ~0x03; //Turn off the clock.
-	//uint8_t sreg = SREG;
 	tachometer = TCNT1; //Collect time period.
 	TCNT1 = 0x0000; //Reset timer.
 	TCCR1B |= 0x03; //Turn clock back on.
+	sei();
 }
 //We can imagine that the fan RPM can range anywhere from 60 to 6000 RPM, where <60 RPM would likely be a stall condition.
 //This equates to 1 to 100 Hz (Revolutions per second). At 8 MHz, this means 4 million half-cycles can occur in the worst case.
@@ -82,7 +78,9 @@ int main(void) {
 	OCR0B = 50u; //Set initial COMPARE value to 100.
 	TCCR0B |= (1 << CS00); //Turn on the clock with no pre-scaling.
 
-	EICRA |= (1 << ISC11); //Turn on int1 on falling edge.
+	EICRA |= (1 << ISC11); //Configure int1 to activate on falling edge.
+	EIMSK |= (1 << INT1); //Enable int1.
+	
 	TCCR1B |= 0x03; //Turn on tachometer clock.
 
 	lcd_init(LCD_DISP_ON); //Initialize the LCD.
@@ -100,16 +98,6 @@ int main(void) {
 			refresh = 0;
 		}
 		refresh++;
-		
-		if (buzzerTimer == 65535) { // tweak to liking.
-			isBuzzerOn = isBuzzerOn ? 0 : 1;
-			if (isBuzzerOn) {
-				PORTD |= (1 << PIND7);
-			} else {
-				PORTD &= ~(1 << PIND7);
-			}
-			buzzerTimer = 0;
-		}
     }
 }
 
@@ -146,7 +134,7 @@ void updateLCD(void) {
 	
 	lcd_clrscr();
 	lcd_home();
-	sprintf(buffer,"RPM = %u",tachometer);
+	sprintf(buffer,"RPM = %.2f",rpm);
 	lcd_puts(buffer); //Display RPM.
 	
 	lcd_gotoxy(0,1);
@@ -154,17 +142,15 @@ void updateLCD(void) {
 		sprintf(buffer,"%u%% Duty Cycle", compare >> 1); //shift compare left by 1 as it is 0.5% unit steps.
 		lcd_puts(buffer);
 	} else { //State 0 - display fan status.
-		// temp code.
-		sprintf(buffer, "%.2f", rpm);
-		lcd_puts(buffer);
-		
-		// real code here...
-		if (rpm < 60) { //Stall condition.
-			lcd_puts(stallText);
+		if (rpm < 200) { //Stall condition.
+			lcd_puts("Fan Stalled");
+			PORTD |= (1 << PORTD7);
 		} else if (rpm < 2400) { //Low RPM warning.
-			lcd_puts(warnText);
+			lcd_puts("Low RPM");
+			PORTD &= ~(1 << PORTD7);
 		} else { //Fan is operating normally.
-			lcd_puts(okText);
+			lcd_puts("Fan OK");
+			PORTD &= ~(1 << PORTD7);
 		}
 	}
 }
