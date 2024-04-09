@@ -38,6 +38,8 @@ uint8_t buttonState = 0; //Used for reading a toggle of the button.
 uint8_t displayState = 0; //State value (0-1), state 0 is status mode and state 1 is duty cycle mode (for LCD).
 char buffer[18]; //Largest string to be stored in buffer would be "Duty Cycle = XYZ%", which is 18 chars, including the null terminator.
 
+uint16_t buzzerTimer = 0; // long "timer" for buzzer nonsense
+uint8_t isBuzzerOn = 0;   // whether or not the buzzer is on (i love languages without official bools!)
 
 ////TODO: Fix tachometer code, probably just use floats for most of the calculations.
 ISR(INT1_vect) { //External Interrupt 1 (Tachometer).
@@ -62,6 +64,7 @@ int main(void) {
 	
 	//Data direction:
 	DDRD |= (1 << PORTD5); // pin d5 (pwm) is output
+	DDRD |= (1 << PORTD7); // pin d7 (active buzzer) is output
 	DDRC = 0x0F;           // first four port c pins are output
 	DDRB |= (1 << PORTB3); // pin b3 (lcd e) is output
 	DDRB |= (1 << PORTB5); // pin b5 (lcd rs) is output
@@ -92,11 +95,21 @@ int main(void) {
 		checkButton();
 		
 		if (refresh == 1024) {
-			// lcd only updated after 1024 cycles.
+			// lcd only updated after 1024 cycles. this lets us avoid the weird strobing that was happening earlier.
 			updateLCD();
 			refresh = 0;
 		}
 		refresh++;
+		
+		if (buzzerTimer == 65535) { // tweak to liking.
+			isBuzzerOn = isBuzzerOn ? 0 : 1;
+			if (isBuzzerOn) {
+				PORTD |= (1 << PIND7);
+			} else {
+				PORTD &= ~(1 << PIND7);
+			}
+			buzzerTimer = 0;
+		}
     }
 }
 
