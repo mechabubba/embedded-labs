@@ -46,7 +46,6 @@ ISR(INT1_vect) { //External Interrupt 1 (Tachometer).
 	tachometer = TCNT1; //Collect time period.
 	TCNT1 = 0x0000; //Reset timer.
 	TCCR1B |= 0x03; //Turn clock back on.
-	
 }
 //We can imagine that the fan RPM can range anywhere from 60 to 6000 RPM, where <60 RPM would likely be a stall condition.
 //This equates to 1 to 100 Hz (Revolutions per second). At 8 MHz, this means 4 million half-cycles can occur in the worst case.
@@ -86,12 +85,17 @@ int main(void) {
 	lcd_init(LCD_DISP_ON); //Initialize the LCD.
 	lcd_clrscr();
 	
-	uint8_t refresh = 0;
+	uint16_t refresh = 0;
 	sei(); //Enable interrupts.
     while (1) {
 		checkRPG();
 		checkButton();
-		if (refresh == 0) updateLCD(); //LCD is only updated every 256 cycles to increase visibility.
+		
+		if (refresh == 1024) {
+			// lcd only updated after 1024 cycles.
+			updateLCD();
+			refresh = 0;
+		}
 		refresh++;
     }
 }
@@ -104,8 +108,8 @@ int main(void) {
 
 void checkRPG(void) {
 	if ((PINB & 0x03) == 0x03) { //If pin state is on detent (b11 position), then previous state should be either 01 or 10.
-		if (rpgState == 0x01) compare++; //If previous state was b01, then we moved clockwise.
-		else if (rpgState == 0x02) compare--; //If previous state was b10, then we moved counterclockwise.
+		if (rpgState == 0x01) compare--; //If previous state was b01, then we moved counterclockwise.
+		else if (rpgState == 0x02) compare++; //If previous state was b10, then we moved clockwise.
 	}
 	if (compare == 255) compare = 0; //Underflow catch.
 	else if (compare > 200) compare = 200; //Overflow catch.
@@ -113,9 +117,9 @@ void checkRPG(void) {
 }
 
 void checkButton(void) {
-	uint8_t avg = 127;
+	uint8_t avg = 127; // pretend this is a signed int...
 	for (uint8_t i = 0; i < 11; i++) {
-		if (bit_is_clear(PIND,PIND2)) avg++;
+		if (bit_is_clear(PIND, PIND2)) avg++;
 		else avg--;
 	}
 	buttonState <<= 1;
@@ -137,6 +141,11 @@ void updateLCD(void) {
 		sprintf(buffer,"%u%% Duty Cycle", compare >> 1); //shift compare left by 1 as it is 0.5% unit steps.
 		lcd_puts(buffer);
 	} else { //State 0 - display fan status.
+		// temp code.
+		sprintf(buffer, "%.2f", rpm);
+		lcd_puts(buffer);
+		
+		// real code here...
 		if (rpm < 60) { //Stall condition.
 			lcd_puts(stallText);
 		} else if (rpm < 2400) { //Low RPM warning.
@@ -144,6 +153,5 @@ void updateLCD(void) {
 		} else { //Fan is operating normally.
 			lcd_puts(okText);
 		}
-		
 	}
 }
