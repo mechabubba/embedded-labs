@@ -33,9 +33,6 @@ uint8_t buttonState = 0; //Used for reading a toggle of the button.
 uint8_t displayState = 0; //State value (0-1), state 0 is status mode and state 1 is duty cycle mode (for LCD).
 char buffer[18]; //Largest string to be stored in buffer would be "Duty Cycle = XYZ%", which is 18 chars, including the null terminator.
 
-uint16_t buzzerTimer = 0; // long "timer" for buzzer nonsense
-uint8_t isBuzzerOn = 0;   // whether or not the buzzer is on (i love languages without official bools!)
-
 ////TODO: Fix tachometer code, probably just use floats for most of the calculations.
 ISR(INT1_vect) { //External Interrupt 1 (Tachometer).
 	cli();
