@@ -26,6 +26,9 @@ void getPCTime(struct tm *rtc_date);
 void getPCF8583Time(struct tm *rtc_date);
 void setPCF8583Time(struct tm *rtc_date);
 
+uint8_t to_bcd(uint8_t in);
+uint8_t from_bcd(uint8_t in);
+
 int main (void)
 {  
    struct tm rtc_date;
@@ -43,7 +46,7 @@ int main (void)
       if (!uart_buffer_empty()){  // If there are input characters.
          c = usart_getc();
 
-         switch(c){
+         switch(c) { //Switches based on what character the terminal has sent to the uC.
 
             case 'T':
                usart_prints("Getting time from PC. Run isotime.vbs\n");
@@ -56,6 +59,14 @@ int main (void)
                buff = isotime(&rtc_date);
                usart_prints(buff);
                usart_prints("\n");
+			   break;
+			   
+			case 'S': //Just print the current time?
+			   getPCF8583Time(&rtc_date);
+			   buff = isotime(&rtc_date);
+			   usart_prints(buff);
+			   usart_prints("\n"); //Does the newline character encapsulate a carriage return? we are supposed to do \r\n, not just \n.
+			   break;
 
             default:
                usart_prints("Beep\n");
@@ -108,8 +119,21 @@ void getPCTime(struct tm *rtc_date) // 2024-03-28 22:51:41
 //
 void setPCF8583Time(struct tm *rtc_date)
 {
-   // TODO - Extract time from rtc_date and write using I2c
-   // to the RTC registers.
+   i2c_start(0xA0+I2C_WRITE); //Pause the RTC clock.
+   i2c_write(0x00);
+   i2c_write(0x80);
+   
+   i2c_start(0xA0+I2C_WRITE); 
+   i2c_write(0x02);
+   i2c_write(to_bcd(rtc_date->tm_sec)); //Write the second counter. (02h)
+   i2c_write(to_bcd(rtc_date->tm_min)); //Write the minute counter. (03h)
+   i2c_write(to_bcd(rtc_date->tm_hour) & 0x3F); //Write the hour counter. (04h)
+   i2c_write(((rtc_date->tm_year & 0x03) << 6) + to_bcd(rtc_date->tm_yday)); //Write the year/day counter. (05h)
+   i2c_write(to_bcd(rtc_date->tm_mon)); //Write the month counter (weekdays are unknown). (06h)
+   
+   i2c_start(0xA0+I2C_WRITE); //Resume the RTC clock.
+   i2c_write(0x00);
+   i2c_write(0x00);
 }
 
 
@@ -119,8 +143,15 @@ void setPCF8583Time(struct tm *rtc_date)
 //
 void getPCF8583Time(struct tm *rtc_date)
 {
-   // TODO - Read time from RTC.
-
+   i2c_start(0xA0+I2C_WRITE); //Tell it to start reading from the seconds address.
+   i2c_write(0x02);
+   
+   i2c_start(0xA0+I2C_READ);
+   rtc_date->tm_sec = from_bcd(i2c_readAck());
+   rtc_date->tm_min = from_bcd(i2c_readAck());
+   rtc_date->tm_hour = from_bcd(i2c_readAck());
+   rtc_date->tm_yday = from_bcd(i2c_readAck() & 0x3F); //Don't include the year bits
+   rtc_date->tm_mon = from_bcd(i2c_readNak());
 }
 
 // Helper Function
@@ -262,7 +293,7 @@ unsigned char uart_buffer_empty(void)
 
 #include <inttypes.h>
 #include <compat/twi.h>
-#include <i2cmaster.h>
+#include "i2cmaster.h" //i2cmaster.h is a local header, not a library.
 
 // define CPU frequency in Here here if not defined in Makefile  or above 
 
@@ -454,3 +485,10 @@ unsigned char i2c_readNak(void)
 
 }/* i2c_readNak */
 
+uint8_t to_bcd(uint8_t in) {
+	return (in % 10) | ((in / 10) << 4);
+}
+
+uint8_t from_bcd(uint8_t in) {
+	return (in & 0x0F) + 10 * (in >> 4);
+}
