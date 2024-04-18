@@ -64,7 +64,7 @@ int main (void)
             case 'T':
                usart_prints("Getting time from PC. Run isotime.vbs\r\n");
                getPCTime(&rtc_date);         // Gets PC time in format:
-               //setPCF8583Time(&rtc_date);    // Set the RTC.
+               setPCF8583Time(&rtc_date);    // Set the RTC.
                break;
       
 	        case 'r':
@@ -153,6 +153,7 @@ void setPCF8583Time(struct tm *rtc_date)
    i2c_start(0xA0+I2C_WRITE); //Pause the RTC clock.
    i2c_write(0x00);
    i2c_write(0x80);
+   i2c_stop();
    
    i2c_start(0xA0+I2C_WRITE); 
    i2c_write(0x02);
@@ -161,10 +162,12 @@ void setPCF8583Time(struct tm *rtc_date)
    i2c_write(to_bcd(rtc_date->tm_hour) & 0x3F); //Write the hour counter. (04h)
    i2c_write(((rtc_date->tm_year & 0x03) << 6) + to_bcd(rtc_date->tm_yday)); //Write the year/day counter. (05h)
    i2c_write(to_bcd(rtc_date->tm_mon)); //Write the month counter (weekdays are unknown). (06h)
+   i2c_stop();
    
    i2c_start(0xA0+I2C_WRITE); //Resume the RTC clock.
    i2c_write(0x00);
    i2c_write(0x00);
+   i2c_stop();
 }
 
 
@@ -176,6 +179,7 @@ void getPCF8583Time(struct tm *rtc_date)
 {
    i2c_start(0xA0+I2C_WRITE); //Tell it to start reading from the seconds address.
    i2c_write(0x02);
+   i2c_stop();
    
    i2c_start(0xA0+I2C_READ);
    rtc_date->tm_sec = from_bcd(i2c_readAck());
