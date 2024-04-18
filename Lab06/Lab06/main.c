@@ -29,10 +29,19 @@ void setPCF8583Time(struct tm *rtc_date);
 uint8_t to_bcd(uint8_t in);
 uint8_t from_bcd(uint8_t in);
 
+#define COOL_DEBUG_FLAG // losing my marbles.
+
+#ifdef COOL_DEBUG_FLAG
+#define _usart_putc(c) usart_putc(c);
+#else
+#define _usart_putc(c)
+#endif
+
 int main (void)
 {  
    struct tm rtc_date;
    char* buff;
+   char buff2[4];
    char c;
 
 
@@ -46,11 +55,16 @@ int main (void)
          c = usart_getc();
 
          switch(c) { //Switches based on what character the terminal has sent to the uC.
+			case 'j':
+			   usart_prints(itoa(rtc_date.tm_year, buff2, 10));
+			   usart_prints("\r\n");
+			   break;
+			   
             case 't':
             case 'T':
                usart_prints("Getting time from PC. Run isotime.vbs\r\n");
                getPCTime(&rtc_date);         // Gets PC time in format:
-               setPCF8583Time(&rtc_date);    // Set the RTC.
+               //setPCF8583Time(&rtc_date);    // Set the RTC.
                break;
       
 	        case 'r':
@@ -101,33 +115,69 @@ void showMenu(void){
 //
 // The function blocks.
 //
+
+#define GET_DATE_VAL(val, size)      \
+    char (val)[(size + 1)];          \
+	for (int i = 0; i < size; i++) { \
+		(val)[i] = usart_getc();     \
+		_usart_putc((val)[i]);       \
+	}                                \
+	usart_getc(); // dump following character.
+	
+
 void getPCTime(struct tm *rtc_date) // 2024-03-28 22:51:41
 {
-   char year[4];
-   for (int i = 0; i < 4; i++) year[i] = usart_getc();
-   usart_getc(); // dump the dash.
- 
-   char month[2];
-   for (int i = 0; i < 2; i++) month[i] = usart_getc();
-   usart_getc();
+   GET_DATE_VAL(year, 4);
+   GET_DATE_VAL(month, 2);
+   GET_DATE_VAL(day, 2);
+   GET_DATE_VAL(hour, 2);
+   GET_DATE_VAL(minute, 2);
+   GET_DATE_VAL(second, 2);
+	
+   //char year[5];
+   //for (int i = 0; i < 4; i++) {
+//	   year[i] = usart_getc();
+//	   _usart_putc(year[i]);
+//   }
+//   usart_getc(); // dump the dash.
+// 
+//   char month[3];
+//   for (int i = 0; i < 2; i++) {
+//	   month[i] = usart_getc();
+//	   _usart_putc(month[i]);
+//   }
+//   usart_getc();
+//   
+//   char day[3];
+//   for (int i = 0; i < 2; i++) {
+//	   day[i] = usart_getc();
+//	   _usart_putc(day[i]);
+//   }
+//   usart_getc();
+//
+//   char hour[3];
+//   for (int i = 0; i < 2; i++) {
+//	   hour[i] = usart_getc();
+//	   _usart_putc(hour[i]);
+//   }
+//   usart_getc();
+//   
+//   char minute[3]; 
+//   for (int i = 0; i < 2; i++) {
+//	   minute[i] = usart_getc();
+//	   _usart_putc(minute[i]);
+//   }
+//   usart_getc();
+//
+//  char second[3];
+//  for (int i = 0; i < 2; i++) {
+//	   second[i] = usart_getc();
+//	   _usart_putc(second[i]);
+//   }
+//   usart_getc(); // '\r'
+   usart_getc(); // '\n'
    
-   char day[2];
-   for (int i = 0; i < 2; i++) day[i] = usart_getc();
-   usart_getc();
- 
-   char hour[2];
-   for (int i = 0; i < 2; i++) hour[i] = usart_getc();
-   usart_getc();
-   
-   char minute[2]; 
-   for (int i = 0; i < 2; i++) minute[i] = usart_getc();
-   usart_getc();
-   
-   char second[2];
-   for (int i = 0; i < 2; i++) second[i] = usart_getc();
-   usart_getc();
-   
-   rtc_date->tm_year = atoi(year) - 2024;
+   rtc_date->tm_year = atoi(year);
    rtc_date->tm_mon  = atoi(month);
    rtc_date->tm_mday = atoi(day);
    rtc_date->tm_hour = atoi(hour);
