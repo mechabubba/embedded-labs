@@ -133,48 +133,7 @@ void getPCTime(struct tm *rtc_date) // 2024-03-28 22:51:41
    GET_DATE_VAL(hour, 2);
    GET_DATE_VAL(minute, 2);
    GET_DATE_VAL(second, 2);
-	
-   //char year[5];
-   //for (int i = 0; i < 4; i++) {
-//	   year[i] = usart_getc();
-//	   _usart_putc(year[i]);
-//   }
-//   usart_getc(); // dump the dash.
-// 
-//   char month[3];
-//   for (int i = 0; i < 2; i++) {
-//	   month[i] = usart_getc();
-//	   _usart_putc(month[i]);
-//   }
-//   usart_getc();
-//   
-//   char day[3];
-//   for (int i = 0; i < 2; i++) {
-//	   day[i] = usart_getc();
-//	   _usart_putc(day[i]);
-//   }
-//   usart_getc();
-//
-//   char hour[3];
-//   for (int i = 0; i < 2; i++) {
-//	   hour[i] = usart_getc();
-//	   _usart_putc(hour[i]);
-//   }
-//   usart_getc();
-//   
-//   char minute[3]; 
-//   for (int i = 0; i < 2; i++) {
-//	   minute[i] = usart_getc();
-//	   _usart_putc(minute[i]);
-//   }
-//   usart_getc();
-//
-//  char second[3];
-//  for (int i = 0; i < 2; i++) {
-//	   second[i] = usart_getc();
-//	   _usart_putc(second[i]);
-//   }
-//   usart_getc(); // '\r'
+
    usart_getc(); // '\n'
    
    rtc_date->tm_year = atoi(year);
