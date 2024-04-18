@@ -42,47 +42,47 @@ int main (void)
    showMenu();
 
    while(1) {
-
       if (!uart_buffer_empty()){  // If there are input characters.
          c = usart_getc();
 
          switch(c) { //Switches based on what character the terminal has sent to the uC.
-
+            case 't':
             case 'T':
-               usart_prints("Getting time from PC. Run isotime.vbs\n");
+               usart_prints("Getting time from PC. Run isotime.vbs\r\n");
                getPCTime(&rtc_date);         // Gets PC time in format:
                setPCF8583Time(&rtc_date);    // Set the RTC.
                break;
       
+	        case 'r':
             case 'R':
                getPCF8583Time(&rtc_date);
                buff = isotime(&rtc_date);
                usart_prints(buff);
-               usart_prints("\n");
+               usart_prints("\r\n");
 			   break;
 			   
+			case 's':
 			case 'S': //Just print the current time?
 			   getPCF8583Time(&rtc_date);
-			   buff = isotime(&rtc_date);
-			   usart_prints(buff);
-			   usart_prints("\n"); //Does the newline character encapsulate a carriage return? we are supposed to do \r\n, not just \n.
+			   //buff = isotime(&rtc_date);
+			   usart_prints("HALP");
+			   //usart_prints(buff);
+			   usart_prints("\r\n"); //Does the newline character encapsulate a carriage return? we are supposed to do \r\n, not just \n.
 			   break;
 
             default:
-               usart_prints("Beep\n");
-              usart_clear();
+               usart_prints("Beep\r\n");
+               usart_clear();
          }
-
-
       }
    }
 }
 
 // Store menu items in FLASH.
 
-const char fdata1[] PROGMEM = "Press Any of These Keys\n\n";  
-const char fdata2[] PROGMEM = "    T - Get Time from PC and set RTC\n";  
-const char fdata3[] PROGMEM = "    R to Run and Collect Data\n";  
+const char fdata1[] PROGMEM = "Press Any of These Keys\r\n\r\n";  
+const char fdata2[] PROGMEM = "    T - Get Time from PC and set RTC\r\n";  
+const char fdata3[] PROGMEM = "    R to Run and Collect Data\r\n";  
 
 // TODO - add text for rest of menu items.
 
@@ -102,15 +102,37 @@ void showMenu(void){
 // The function blocks.
 //
 void getPCTime(struct tm *rtc_date) // 2024-03-28 22:51:41
-{ 
-   // TODO - Add code to read date string sent from PC.
-
-   rtc_date->tm_year = 2024-2024;
-   rtc_date->tm_mon = 4-1;            // April.
-   rtc_date->tm_mday = 9;
-   rtc_date->tm_hour = 18;             // 24 hour format
-   rtc_date->tm_min = 56;
-   rtc_date->tm_sec = 44;
+{
+   char year[4];
+   for (int i = 0; i < 4; i++) year[i] = usart_getc();
+   usart_getc(); // dump the dash.
+ 
+   char month[2];
+   for (int i = 0; i < 2; i++) month[i] = usart_getc();
+   usart_getc();
+   
+   char day[2];
+   for (int i = 0; i < 2; i++) day[i] = usart_getc();
+   usart_getc();
+ 
+   char hour[2];
+   for (int i = 0; i < 2; i++) hour[i] = usart_getc();
+   usart_getc();
+   
+   char minute[2]; 
+   for (int i = 0; i < 2; i++) minute[i] = usart_getc();
+   usart_getc();
+   
+   char second[2];
+   for (int i = 0; i < 2; i++) second[i] = usart_getc();
+   usart_getc();
+   
+   rtc_date->tm_year = atoi(year) - 2024;
+   rtc_date->tm_mon  = atoi(month);
+   rtc_date->tm_mday = atoi(day);
+   rtc_date->tm_hour = atoi(hour);
+   rtc_date->tm_min  = atoi(minute);
+   rtc_date->tm_sec  = atoi(second);
 }
 
 ////////////////////////////////////////////////////////////////
