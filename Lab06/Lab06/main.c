@@ -40,14 +40,27 @@ uint8_t from_bcd(uint8_t in);
   #define _usart_prints(s)
 #endif
 
+ISR(TIMER1_COMPA_vect) {
+	// TODO: Print the Time and ADC value to console here!
+}
+
 int main (void)
 {  
    struct tm rtc_date;
    char* buff;
    char c;
 
-   // adc stuff...
-      
+   // ADC stuff...
+   ADMUX = 0x40; //REFS = 01b, ADLAR = 0b, MUX = 0000b.
+   ADCSRB = 0x00; //ACME = 0b, ADTS = 0000b (Free running mode? We are not told what to do here.)
+   ADCSRA = 0xC0; //ADEN = 1b, ADSC = 1b, All else = 0. 
+   //Will trigger the first conversion, and because of free-running mode the uC should continuously try and perform conversions from that point on.
+   
+   //Timer1 setup - We have to print the value once per second so we need a way to know that one second has passed (without using the INT0 pin on the RTC?)
+   //The easiest way I could think of is Timer1 on CTC mode, where the clock is divided by 256 and reset is triggered at value 62500.
+   TCCR1A = 0x00;
+   OCR1A = 62500; //Assign TOP value to 62500 to get a 1 Hz interrupt signal.
+   TCCR1B |= (1 << WGM12)|(1 << CS12); // CTC mode (OCR1A top value), Divide clock by 256 and enable.
 
    usart_init();           // Initialize the USART
    i2c_init();             // Initialize I2C system.
@@ -68,7 +81,15 @@ int main (void)
       
 	        case 'r':
             case 'R':
-               usart_prints("not yet implemented.\r\n");
+               usart_prints("Starting log...\r\n");
+			   TIMSK1 |= (1 << OCIE1A); //Enable the timer1 interrupt.
+			   break;
+			   
+			case 'm':
+			case 'M':
+			   if ((TIMSK1 | (1 << OCIE1A)) == 0) break; //The interrupt is not enabled in the first place.
+			   TIMSK1 &= ~(1 << OCIE1A); //Disable the timer1 interrupt.
+			   usart_prints("Ending log.\r\n");
 			   break;
 			   
 			case 's':
