@@ -29,21 +29,25 @@ void setPCF8583Time(struct tm *rtc_date);
 uint8_t to_bcd(uint8_t in);
 uint8_t from_bcd(uint8_t in);
 
-#define COOL_DEBUG_FLAG // losing my marbles.
+// debug methods.
+#define COOL_DEBUG_FLAG // comment this out if you don't want 'em.
 
 #ifdef COOL_DEBUG_FLAG
-#define _usart_putc(c) usart_putc(c);
+  #define _usart_putc(c)   usart_putc(c);
+  #define _usart_prints(s) usart_prints(s);
 #else
-#define _usart_putc(c)
+  #define _usart_putc(c)
+  #define _usart_prints(s)
 #endif
 
 int main (void)
 {  
    struct tm rtc_date;
    char* buff;
-   char buff2[4];
    char c;
 
+   // adc stuff...
+      
 
    usart_init();           // Initialize the USART
    i2c_init();             // Initialize I2C system.
@@ -55,11 +59,6 @@ int main (void)
          c = usart_getc();
 
          switch(c) { //Switches based on what character the terminal has sent to the uC.
-			case 'j':
-			   usart_prints(itoa(rtc_date.tm_year, buff2, 10));
-			   usart_prints("\r\n");
-			   break;
-			   
             case 't':
             case 'T':
                usart_prints("Getting time from PC. Run isotime.vbs\r\n");
@@ -69,18 +68,14 @@ int main (void)
       
 	        case 'r':
             case 'R':
-               getPCF8583Time(&rtc_date);
-               buff = isotime(&rtc_date);
-               usart_prints(buff);
-               usart_prints("\r\n");
+               usart_prints("not yet implemented.\r\n");
 			   break;
 			   
 			case 's':
 			case 'S': //Just print the current time?
 			   getPCF8583Time(&rtc_date);
-			   //buff = isotime(&rtc_date);
-			   usart_prints("HALP");
-			   //usart_prints(buff);
+			   buff = isotime(&rtc_date);
+			   usart_prints(buff);
 			   usart_prints("\r\n"); //Does the newline character encapsulate a carriage return? we are supposed to do \r\n, not just \n.
 			   break;
 
@@ -93,18 +88,18 @@ int main (void)
 }
 
 // Store menu items in FLASH.
+const char menu_text[] PROGMEM =
+   "*************************************\r\n"
+   "Press any of these keys;\r\n"
+   "   T - Get time from PC and set RTC.\r\n"
+   "   R - Run and collect data.\r\n"
+   "   S - Print current time on the RTC.\r\n"
+   "*************************************\r\n";
 
-const char fdata1[] PROGMEM = "Press Any of These Keys\r\n\r\n";  
-const char fdata2[] PROGMEM = "    T - Get Time from PC and set RTC\r\n";  
-const char fdata3[] PROGMEM = "    R to Run and Collect Data\r\n";  
-
-// TODO - add text for rest of menu items.
-
-void showMenu(void){  
-   usart_printf(fdata1);    
-   usart_printf(fdata2);   
-   usart_printf(fdata3);   
+void showMenu(void) {  
+   usart_printf(menu_text);
 }
+
 ////////////////////////////////////////////////////////////////
 //
 // Get time from PC via serial port. The format the PC send is a
@@ -123,7 +118,6 @@ void showMenu(void){
 		_usart_putc((val)[i]);       \
 	}                                \
 	usart_getc(); // dump following character.
-	
 
 void getPCTime(struct tm *rtc_date) // 2024-03-28 22:51:41
 {
@@ -136,7 +130,7 @@ void getPCTime(struct tm *rtc_date) // 2024-03-28 22:51:41
 
    usart_getc(); // '\n'
    
-   rtc_date->tm_year = atoi(year);
+   rtc_date->tm_year = atoi(year) - 1900; // this is a measure of years since 1900
    rtc_date->tm_mon  = atoi(month);
    rtc_date->tm_mday = atoi(day);
    rtc_date->tm_hour = atoi(hour);
@@ -150,12 +144,13 @@ void getPCTime(struct tm *rtc_date) // 2024-03-28 22:51:41
 //
 void setPCF8583Time(struct tm *rtc_date)
 {
-   i2c_start(0xA0+I2C_WRITE); //Pause the RTC clock.
+   i2c_start_wait(0xA0 + I2C_WRITE);
    i2c_write(0x00);
    i2c_write(0x80);
    i2c_stop();
+   _usart_putc('a');
    
-   i2c_start(0xA0+I2C_WRITE); 
+   i2c_start_wait(0xA0 + I2C_WRITE); 
    i2c_write(0x02);
    i2c_write(to_bcd(rtc_date->tm_sec)); //Write the second counter. (02h)
    i2c_write(to_bcd(rtc_date->tm_min)); //Write the minute counter. (03h)
@@ -163,11 +158,14 @@ void setPCF8583Time(struct tm *rtc_date)
    i2c_write(((rtc_date->tm_year & 0x03) << 6) + to_bcd(rtc_date->tm_yday)); //Write the year/day counter. (05h)
    i2c_write(to_bcd(rtc_date->tm_mon)); //Write the month counter (weekdays are unknown). (06h)
    i2c_stop();
+   _usart_putc('b');
    
-   i2c_start(0xA0+I2C_WRITE); //Resume the RTC clock.
+   i2c_start_wait(0xA0 + I2C_WRITE); //Resume the RTC clock.
    i2c_write(0x00);
    i2c_write(0x00);
    i2c_stop();
+   _usart_putc('c');
+   _usart_prints("\r\n");
 }
 
 
@@ -177,11 +175,11 @@ void setPCF8583Time(struct tm *rtc_date)
 //
 void getPCF8583Time(struct tm *rtc_date)
 {
-   i2c_start(0xA0+I2C_WRITE); //Tell it to start reading from the seconds address.
+   i2c_start(0xA0 + I2C_WRITE); //Tell it to start reading from the seconds address.
    i2c_write(0x02);
    i2c_stop();
    
-   i2c_start(0xA0+I2C_READ);
+   i2c_start(0xA0 + I2C_READ);
    rtc_date->tm_sec = from_bcd(i2c_readAck());
    rtc_date->tm_min = from_bcd(i2c_readAck());
    rtc_date->tm_hour = from_bcd(i2c_readAck());
@@ -364,8 +362,12 @@ unsigned char i2c_start(unsigned char address)
 	// send START condition
 	TWCR = (1<<TWINT) | (1<<TWSTA) | (1<<TWEN);
 
+	_usart_prints("Sending START...\r\n");
+
 	// wait until transmission completed
 	while(!(TWCR & (1<<TWINT)));
+	
+	_usart_prints("START sent!\r\n");
 
 	// check value of TWI Status Register. Mask prescaler bits.
 	twst = TW_STATUS & 0xF8;
