@@ -149,7 +149,10 @@ int main (void)
 			      break;
 
 			   default:
-                  usart_prints("Beep\r\n");
+			      usart_prints("Beep\r\n");
+                  PORTD |= (1 << PIND7);
+                  _delay_ms(100);
+                  PORTD &= ~(1 << PIND7);
                   usart_clear();
 			}
 		 }
