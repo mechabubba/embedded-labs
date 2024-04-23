@@ -69,10 +69,13 @@ ISR(TIMER1_COMPA_vect) {
 	usart_prints(rtc_str);
 	usart_prints(", ");
 	
-	uint16_t val = ADC; //Since we are in an interrupt that pauses other interrupts, we can trust that this operation will remain atomic.
+	ADCSRA |= (1 << ADSC);
+	while((ADCSRA & (1 << ADSC)) != 0);
+	
+	//Since we are in an interrupt that pauses other interrupts, we can trust that this operation will remain atomic.
 	//Therefore we should be able to just use the 16-bit ADC, rather than separately access the 8-bit ADCH and ADCL registers.
 	char buff[16];
-	usart_prints(itoa(val, buff, 10));
+	usart_prints(itoa(ADC, buff, 10));
 	usart_prints("\r\n");
 
 	sei(); // get crackin'
@@ -84,9 +87,9 @@ int main (void)
    DDRC &= ~(1 << PORTC0); // analog signal in. (is this necessary?)
    
    // ADC stuff...
-   ADMUX = 0x40;  // REFS = 01b, ADLAR = 0b,  MUX = 0000b.
+   ADMUX = 0x00;  // REFS = 00b, ADLAR = 0b,  MUX = 0000b.
    ADCSRB = 0x00; // ACME = 0b,  ADTS = 0000b (Free running mode? We are not told what to do here.)
-   ADCSRA = 0xC0; // ADEN = 1b,  ADSC = 1b,   All else = 0. 
+   ADCSRA |= (1 << ADEN) | (1 << ADSC) | 0x07; // ADEN = 1b,  ADSC = 1b, prescaler all the way up. 
    //Will trigger the first conversion, and because of free-running mode the uC should continuously try and perform conversions from that point on.
    
    //Timer1 setup - We have to print the value once per second so we need a way to know that one second has passed (without using the INT0 pin on the RTC?)
@@ -418,12 +421,8 @@ unsigned char i2c_start(unsigned char address)
 	// send START condition
 	TWCR = (1<<TWINT) | (1<<TWSTA) | (1<<TWEN);
 
-	_usart_prints("Sending START...\r\n");
-
 	// wait until transmission completed
 	while(!(TWCR & (1<<TWINT)));
-	
-	_usart_prints("START sent!\r\n");
 
 	// check value of TWI Status Register. Mask prescaler bits.
 	twst = TW_STATUS & 0xF8;
