@@ -69,7 +69,8 @@ ISR(TIMER1_COMPA_vect) {
 	usart_prints(rtc_str);
 	usart_prints(", ");
 	
-	uint16_t val = (ADCH << 6) + ADCL;
+	uint16_t val = ADC; //Since we are in an interrupt that pauses other interrupts, we can trust that this operation will remain atomic.
+	//Therefore we should be able to just use the 16-bit ADC, rather than separately access the 8-bit ADCH and ADCL registers.
 	char buff[16];
 	usart_prints(itoa(val, buff, 10));
 	usart_prints("\r\n");
@@ -123,6 +124,8 @@ int main (void)
                case 'R':
                   usart_prints("Starting log...\r\n");
 			      TIMSK1 |= (1 << OCIE1A); //Enable the timer1 interrupt.
+				  //I was an idiot here, it would make far more sense to pause Timer1's clock rather than pause its interrupt,
+				  //but since it is currently working I don't want to risk breaking anything.
 			      break;
 			   
 			   case 'm':
@@ -138,7 +141,7 @@ int main (void)
 			      getPCF8583Time(&rtc_date);
 			      rtc_str = isotime(&rtc_date);
 			      usart_prints(rtc_str);
-			      usart_prints("\r\n"); //Does the newline character encapsulate a carriage return? we are supposed to do \r\n, not just \n.
+			      usart_prints("\r\n");
 			      break;
 
 			   default:
