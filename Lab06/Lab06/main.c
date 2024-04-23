@@ -18,6 +18,8 @@
 #include "i2cmaster.h"
 #include <time.h>
 
+uint16_t adc_read(uint8_t adc_channel);
+
 void _delay_5ms(void);
 void showMenu(void);
 
@@ -69,24 +71,37 @@ ISR(TIMER1_COMPA_vect) {
 	usart_prints(rtc_str);
 	usart_prints(", ");
 	
-	uint16_t val = (ADCH << 6) + ADCL;
-	char buff[16];
-	usart_prints(itoa(val, buff, 10));
-	usart_prints("\r\n");
+	uint16_t adc_out = adc_read(PINC0);
+	float adc_voltage = (adc_out * (5 / 1024));
+	char buff[6];
+	sprintf(buff, "%.2f\r\n", adc_voltage);
+	usart_prints(buff);
+    //usart_prints(itoa(adc_out, buff, 10));
 
 	sei(); // get crackin'
+}
+
+uint16_t adc_read(uint8_t adc_channel) {
+	ADMUX = adc_channel | ((1 << REFS0) | (0 << ADLAR));
+	_delay_us(10);
+	
+	ADCSRA |= (1 << ADSC);
+	while (ADCSRA & (1 <<ADSC));
+	
+	return ADCW;
 }
 
 int main (void)
 {  
    DDRD |= (1 << PORTD7);  // buzzer out.
    DDRC &= ~(1 << PORTC0); // analog signal in. (is this necessary?)
+   //DIDR0 &= ~(1 << PORTC0);
    
    // ADC stuff...
-   ADMUX = 0x40;  // REFS = 01b, ADLAR = 0b,  MUX = 0000b.
-   ADCSRB = 0x00; // ACME = 0b,  ADTS = 0000b (Free running mode? We are not told what to do here.)
-   ADCSRA = 0xC0; // ADEN = 1b,  ADSC = 1b,   All else = 0. 
-   //Will trigger the first conversion, and because of free-running mode the uC should continuously try and perform conversions from that point on.
+   ADMUX = ((1 << REFS0) | (0 << ADLAR));  // REFS = 01b, ADLAR = 0b. MUX is left to 0 as we are accessing analog pin 0.
+   ADCSRA = ((1 << ADEN) | (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0)); // enable the ADC and set the ADC timer prescaler all the way up (dunno why)
+   // formerly housed the free running adc code.
+   // please advise: https://github.com/mechabubba/embedded-labs/blob/3e5d64e52625566e615e20331a299ee69a20c27f/Lab06/Lab06/main.c#L85-L89
    
    //Timer1 setup - We have to print the value once per second so we need a way to know that one second has passed (without using the INT0 pin on the RTC?)
    //The easiest way I could think of is Timer1 on CTC mode, where the clock is divided by 256 and reset is triggered at value 62500.
@@ -107,6 +122,7 @@ int main (void)
 		 // beep.
 		 if((TIMSK1 & (1 << OCIE1A)) && (c != 'm' && c != 'M')) {
 			 _usart_prints("audible beep. ");
+			 _usart_putc(c);
 			 PORTD |= (1 << PIND7);
 			 _delay_ms(100);
 			 PORTD &= ~(1 << PIND7);
