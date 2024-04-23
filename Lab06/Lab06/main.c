@@ -1,6 +1,14 @@
+/*
+ * Lab06/main.c
+ *
+ * Created: 04/16/2024 02:49:00 PM
+ * Author : Steven V, Jared M
+ */ 
+
 #ifndef F_CPU
 #define F_CPU 16000000UL    // 16 MHz clock speed.
 #endif
+
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/pgmspace.h>
@@ -12,7 +20,6 @@
 
 void _delay_5ms(void);
 void showMenu(void);
-
 
 unsigned char uart_buffer_empty(void);
 void usart_prints(const char *ptr);
@@ -31,7 +38,6 @@ uint8_t from_bcd(uint8_t in);
 
 // debug methods.
 #define COOL_DEBUG_FLAG // comment this out if you don't want 'em.
-
 #ifdef COOL_DEBUG_FLAG
   #define _usart_putc(c)   usart_putc(c);
   #define _usart_prints(s) usart_prints(s);
@@ -40,82 +46,109 @@ uint8_t from_bcd(uint8_t in);
   #define _usart_prints(s)
 #endif
 
+// cool globals.
+struct tm rtc_date;
+char* rtc_str;
+
+// Store menu items in FLASH.
+const char menu_text[] PROGMEM =
+   "*************************************\r\n"
+   "Press any of these keys;\r\n"
+   "  M - Stop data acquisition and show menu.\r\n"
+   "  R - Run and collect data.\r\n"
+   "  T - Get time from PC and set RTC.\r\n"
+   "  S - Print current time on the RTC.\r\n"
+   "*************************************\r\n";
+
+// using interrupts for evil here and doing absolutely everything inside this one.
 ISR(TIMER1_COMPA_vect) {
-	// TODO: Print the Time and ADC value to console here!
+	cli(); // disabling the other interrupts for a short time while in here.
+	
+	getPCF8583Time(&rtc_date);
+	rtc_str = isotime(&rtc_date);
+	usart_prints(rtc_str);
+	usart_prints(", ");
+	
+	uint16_t val = (ADCH << 6) + ADCL;
+	char buff[16];
+	usart_prints(itoa(val, buff, 10));
+	usart_prints("\r\n");
+
+	sei(); // get crackin'
 }
 
 int main (void)
 {  
-   struct tm rtc_date;
-   char* buff;
-   char c;
-
+   DDRD |= (1 << PORTD7);  // buzzer out.
+   DDRC &= ~(1 << PORTC0); // analog signal in. (is this necessary?)
+   
    // ADC stuff...
-   ADMUX = 0x40; //REFS = 01b, ADLAR = 0b, MUX = 0000b.
-   ADCSRB = 0x00; //ACME = 0b, ADTS = 0000b (Free running mode? We are not told what to do here.)
-   ADCSRA = 0xC0; //ADEN = 1b, ADSC = 1b, All else = 0. 
+   ADMUX = 0x40;  // REFS = 01b, ADLAR = 0b,  MUX = 0000b.
+   ADCSRB = 0x00; // ACME = 0b,  ADTS = 0000b (Free running mode? We are not told what to do here.)
+   ADCSRA = 0xC0; // ADEN = 1b,  ADSC = 1b,   All else = 0. 
    //Will trigger the first conversion, and because of free-running mode the uC should continuously try and perform conversions from that point on.
    
    //Timer1 setup - We have to print the value once per second so we need a way to know that one second has passed (without using the INT0 pin on the RTC?)
    //The easiest way I could think of is Timer1 on CTC mode, where the clock is divided by 256 and reset is triggered at value 62500.
    TCCR1A = 0x00;
    OCR1A = 62500; //Assign TOP value to 62500 to get a 1 Hz interrupt signal.
-   TCCR1B |= (1 << WGM12)|(1 << CS12); // CTC mode (OCR1A top value), Divide clock by 256 and enable.
+   TCCR1B |= (1 << WGM12) | (1 << CS12); // CTC mode (OCR1A top value), Divide clock by 256 and enable.
 
    usart_init();           // Initialize the USART
    i2c_init();             // Initialize I2C system.
    sei();                  // Enable interrupts.
    showMenu();
 
+   char c;
    while(1) {
       if (!uart_buffer_empty()){  // If there are input characters.
          c = usart_getc();
-
-         switch(c) { //Switches based on what character the terminal has sent to the uC.
-            case 't':
-            case 'T':
-               usart_prints("Getting time from PC. Run isotime.vbs\r\n");
-               getPCTime(&rtc_date);         // Gets PC time in format:
-               setPCF8583Time(&rtc_date);    // Set the RTC.
-               break;
+         
+		 // beep.
+		 if((TIMSK1 & (1 << OCIE1A)) && (c != 'm' && c != 'M')) {
+			 _usart_prints("audible beep. ");
+			 PORTD |= (1 << PIND7);
+			 _delay_ms(100);
+			 PORTD &= ~(1 << PIND7);
+		 } else {
+            switch(c) { //Switches based on what character the terminal has sent to the uC.
+               case 't':
+               case 'T':
+                  usart_prints("Getting time from PC. Run isotime.vbs.\r\n");
+                  getPCTime(&rtc_date);         // Gets PC time in format:
+                  setPCF8583Time(&rtc_date);    // Set the RTC.
+                  break;
       
-	        case 'r':
-            case 'R':
-               usart_prints("Starting log...\r\n");
-			   TIMSK1 |= (1 << OCIE1A); //Enable the timer1 interrupt.
-			   break;
+	           case 'r':
+               case 'R':
+                  usart_prints("Starting log...\r\n");
+			      TIMSK1 |= (1 << OCIE1A); //Enable the timer1 interrupt.
+			      break;
 			   
-			case 'm':
-			case 'M':
-			   if ((TIMSK1 | (1 << OCIE1A)) == 0) break; //The interrupt is not enabled in the first place.
-			   TIMSK1 &= ~(1 << OCIE1A); //Disable the timer1 interrupt.
-			   usart_prints("Ending log.\r\n");
-			   break;
+			   case 'm':
+			   case 'M':
+			      if ((TIMSK1 & (1 << OCIE1A)) == 0) break; //The interrupt is not enabled in the first place.
+			      TIMSK1 &= ~(1 << OCIE1A); //Disable the timer1 interrupt.
+			      usart_prints("Ending log.\r\n");
+				  usart_printf(menu_text);
+			      break;
 			   
-			case 's':
-			case 'S': //Just print the current time?
-			   getPCF8583Time(&rtc_date);
-			   buff = isotime(&rtc_date);
-			   usart_prints(buff);
-			   usart_prints("\r\n"); //Does the newline character encapsulate a carriage return? we are supposed to do \r\n, not just \n.
-			   break;
+			   case 's':
+			   case 'S': //Just print the current time?
+			      getPCF8583Time(&rtc_date);
+			      rtc_str = isotime(&rtc_date);
+			      usart_prints(rtc_str);
+			      usart_prints("\r\n"); //Does the newline character encapsulate a carriage return? we are supposed to do \r\n, not just \n.
+			      break;
 
-            default:
-               usart_prints("Beep\r\n");
-               usart_clear();
-         }
+			   default:
+                  usart_prints("Beep\r\n");
+                  usart_clear();
+			}
+		 }
       }
    }
 }
-
-// Store menu items in FLASH.
-const char menu_text[] PROGMEM =
-   "*************************************\r\n"
-   "Press any of these keys;\r\n"
-   "   T - Get time from PC and set RTC.\r\n"
-   "   R - Run and collect data.\r\n"
-   "   S - Print current time on the RTC.\r\n"
-   "*************************************\r\n";
 
 void showMenu(void) {  
    usart_printf(menu_text);
@@ -169,7 +202,7 @@ void setPCF8583Time(struct tm *rtc_date)
    i2c_write(0x00);
    i2c_write(0x80);
    i2c_stop();
-   _usart_putc('a');
+   _usart_prints("[setPCF8583Time] paused RTC... ");
    
    i2c_start_wait(0xA0 + I2C_WRITE); 
    i2c_write(0x02);
@@ -179,14 +212,13 @@ void setPCF8583Time(struct tm *rtc_date)
    i2c_write(((rtc_date->tm_year & 0x03) << 6) + to_bcd(rtc_date->tm_yday)); //Write the year/day counter. (05h)
    i2c_write(to_bcd(rtc_date->tm_mon)); //Write the month counter (weekdays are unknown). (06h)
    i2c_stop();
-   _usart_putc('b');
+   _usart_prints("wrote RTC... ");
    
    i2c_start_wait(0xA0 + I2C_WRITE); //Resume the RTC clock.
    i2c_write(0x00);
    i2c_write(0x00);
    i2c_stop();
-   _usart_putc('c');
-   _usart_prints("\r\n");
+   _usart_prints("unpaused rtc.\r\n");
 }
 
 
