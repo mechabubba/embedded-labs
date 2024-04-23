@@ -37,7 +37,7 @@ uint8_t to_bcd(uint8_t in);
 uint8_t from_bcd(uint8_t in);
 
 // debug methods.
-#define COOL_DEBUG_FLAG // comment this out if you don't want 'em.
+//#define COOL_DEBUG_FLAG // comment this out if you don't want 'em.
 #ifdef COOL_DEBUG_FLAG
   #define _usart_putc(c)   usart_putc(c);
   #define _usart_prints(s) usart_prints(s);
@@ -74,9 +74,10 @@ ISR(TIMER1_COMPA_vect) {
 	
 	//Since we are in an interrupt that pauses other interrupts, we can trust that this operation will remain atomic.
 	//Therefore we should be able to just use the 16-bit ADC, rather than separately access the 8-bit ADCH and ADCL registers.
+	float adc_voltage = (ADC * (5.0f / 1024));
 	char buff[16];
-	usart_prints(itoa(ADC, buff, 10));
-	usart_prints("\r\n");
+	sprintf(buff, "%.2fV\r\n", adc_voltage);
+	usart_prints(buff);
 
 	sei(); // get crackin'
 }
