@@ -39,6 +39,7 @@ int main(void)
 	usart_init();
 	for (uint8_t i = 0; i < 4; i++) writeColor(0, 0, 0); //Clear the color buffer so the LEDs don't display incorrect data.
 	DDRC |= (1 << PINC0); // button
+	sei();
 	
 	usart_prints("test message\r\n");
 	
@@ -48,9 +49,51 @@ int main(void)
 	i2c_stop();
 
 	//Main loop:
+	char c; //Input character
     while (1) {
-		buttonState = (0x03 & (buttonState << 1)) | checkButton();
+		//buttonState = (0x03 & (buttonState << 1)) | checkButton();
+		if (!uart_buffer_empty() || 1) {
+			c = usart_getc();
+			switch (c) {
+			default:
+				usart_prints("Echo ");
+				usart_putc(c);
+				usart_prints("\r\n");
+				usart_clear();
+				break;
+			case 'r':
+			case 'R':
+				writeColor(255,0,0);
+				updateLED();
+				break;
+			case 'g':
+			case 'G':
+				writeColor(0,255,0);
+				updateLED();
+				break;
+			case 'c':
+			case 'C':
+				usart_prints("Color 1: ");
+				usart_prints(redVals[0]);
+				usart_prints(", ");
+				usart_prints(greenVals[0]);
+				usart_prints(", ");
+				usart_prints(blueVals[0]);
+				usart_prints("\r\n");
+				usart_prints("Color 2: ");
+				usart_prints(redVals[1]);
+				usart_prints(", ");
+				usart_prints(greenVals[1]);
+				usart_prints(", ");
+				usart_prints(blueVals[1]);
+				usart_prints("\r\n");
+				
+				break;
+			}
+			
+		}
 		if (buttonState == 0x01) {
+			usart_prints("\tPush Detected\r\n");
 			getColor();
 			updateLED();
 		}
