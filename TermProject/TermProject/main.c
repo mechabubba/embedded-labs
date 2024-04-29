@@ -9,8 +9,10 @@
 #include "i2cmaster.h"
 
 //Preprocessor defines:
-#define SENSOR_ADDR = 0x38; //May need to be shifted left 1 bit.
-#define LED_ADDR = 0xE8;
+#define SENSOR_ADDR 0x38 //May need to be shifted left 1 bit.
+#define LED_ADDR 0xE8
+//Oh whoops didn't think about that... We can only attach 1 LED display as the 2 displays (probably) share the same I2C address.
+//If one of them is a KTD2502A/KTD2502B and the other is a KTD2502C/KTD2502D, then they would have different addresses.
 
 //Global Variables:
 uint8_t redVals[4];
