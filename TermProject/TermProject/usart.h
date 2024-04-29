@@ -10,6 +10,15 @@
 // Variables and #define for ring RX ring buffer.
 
 #define RX_BUFFER_SIZE 64
+
+unsigned char uart_buffer_empty(void);
+void usart_prints(const char *ptr);
+void usart_printf(const char *ptr);
+void usart_init(void);
+void usart_putc(const char c);
+unsigned char usart_getc(void);
+void usart_clear(void);
+
 unsigned char rx_buffer[RX_BUFFER_SIZE];
 volatile unsigned char rx_buffer_head;
 volatile unsigned char rx_buffer_tail;
