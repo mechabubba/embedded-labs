@@ -2,11 +2,8 @@
  * # HI
  * usart related funcs stolen from uiowa s2024 ece3360 lab6 code.
  */
-#include <avr/io.h>
-#include <util/delay.h>
 #include <avr/pgmspace.h>
 #include <avr/interrupt.h>
-#include "avr/sfr_defs.h"
 
 #define BAUD_RATE 9600   // Baud rate. The usart_init routine uses this.
 
