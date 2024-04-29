@@ -5,8 +5,13 @@
  * Author : Jared Mulder, Steven Vanni
  */ 
 
+#ifndef F_CPU
+#define F_CPU 16000000UL    // 16 MHz clock speed.
+#endif
+
 #include <avr/io.h>
 #include "i2cmaster.h"
+#include "usart.h"
 
 //Preprocessor defines:
 #define SENSOR_ADDR 0x38 //May need to be shifted left 1 bit.
@@ -31,7 +36,11 @@ uint8_t checkButton(void);
 int main(void)
 {
 	//Initialization:
+	usart_init();
 	for (uint8_t i = 0; i < 4; i++) writeColor(0, 0, 0); //Clear the color buffer so the LEDs don't display incorrect data.
+	DDRC |= (1 << PINC0); // button
+	
+	usart_prints("test message\r\n");
 	
 	i2c_start(SENSOR_ADDR+I2C_WRITE);
 	i2c_write(0x00);
@@ -105,12 +114,15 @@ void updateLED(void) {
 uint8_t checkButton(void) {
 	uint8_t acc = 127;
 	for (uint8_t i = 0; i < 25; i++) {
-		if ((PORTB >> 7) & 0x01) {
+		if ((PORTC >> PINC0) & 0x01) {
 			acc++;
 		} else {
 			acc--;
 		}
 	}
-	if (acc > 127) return 1;
+	if (acc > 127) {
+		usart_prints("push\r\n");
+		return 1;
+	}
 	else return 0;
 }
