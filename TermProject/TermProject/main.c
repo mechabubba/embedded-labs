@@ -11,14 +11,15 @@
 
 #include <stdio.h>
 #include <avr/io.h>
+#include <util/delay.h>
 #include "i2cmaster.h"
 #include "usart.h"
 
-//Preprocessor defines:
-#define SENSOR_ADDR 0x38 //May need to be shifted left 1 bit.
-#define LED_ADDR 0xE8 //Might need to be 0xEA instead. Depends on if we have a modela A or model C.
-//Oh whoops didn't think about that... We can only attach 1 LED display as the 2 displays (probably) share the same I2C address.
-//If one of them is a KTD2502A/KTD2502B and the other is a KTD2502C/KTD2502D, then they would have different addresses.
+/* Preprocessor stuff */
+#define SENSOR_ADDR (0x38 << 1)
+#define LED_ADDR    (0x74 << 1)
+// We can only attach 1 LED display as the 2 displays (probably) share the same I2C address.
+// If one of them is a KTD2502A/KTD2502B and the other is a KTD2502C/KTD2502D, then they would have different addresses.
 
 //Global Variables:
 uint8_t redVals[4];
@@ -37,59 +38,78 @@ uint8_t checkButton(void);
 
 int main(void)
 {
-	//Initialization:
-	usart_init();
-	for (uint8_t i = 0; i < 4; i++) writeColor(0, 0, 0); //Clear the color buffer so the LEDs don't display incorrect data.
+	/* Initialization */
 	DDRC |= (1 << PINC0); // button
+	
+	usart_init();
+	i2c_init();
 	sei();
+	usart_prints("Starting.\r\n");
 	
-	usart_prints("test message\r\n");
+	// The below code works 1/10th of the time and I have absolutely zero clue why.
+	// Fuck.
+	//_delay_ms(1000); // For the sensor???
+	//char stat_sens = i2c_start(I2C_WRITE + SENSOR_ADDR);
+	//if (stat_sens) {
+	//	usart_prints("Failed to access sensor.\r\n");
+	//} else {
+	//	i2c_write(0x00); // 0x00 SYSM_CTRL
+	//	i2c_write(0x01); // Turn on color sens function.
+	//	i2c_stop();
+	//}
 	
-	i2c_start(SENSOR_ADDR+I2C_WRITE);
-	i2c_write(0x00);
-	i2c_write(0x01); //Tell the color sensor to turn on.
-	i2c_stop();
-	
-	i2c_start(LED_ADDR+I2C_WRITE);
-	i2c_write(0x02);
-	i2c_write(0x80); //Turn the LED on. IDK if this will fix it, probably not but what can I do
-	i2c_stop();
+	writeColor(255, 0, 255); // temp
+	char stat_led = i2c_start(I2C_WRITE + LED_ADDR);
+	if (stat_led) {
+		usart_prints("Failed to access LEDs.\r\n");
+	} else {
+		i2c_write(0x02); // 0x02 CONTROL
+		i2c_write(1 << 7); // Enable normal mode. 
+		i2c_stop();
+	}
 
-	//Main loop:
+	usart_prints("Everything should be initiated...\r\n");
+
+	/* Main loop */
 	char c; //Input character
     while (1) {
 		//buttonState = (0x03 & (buttonState << 1)) | checkButton();
-		if (!uart_buffer_empty() || 1) {
+		if (!uart_buffer_empty()) {
 			c = usart_getc();
 			switch (c) {
-			default:
-				usart_prints("Echo ");
-				usart_putc(c);
-				usart_prints("\r\n");
-				usart_clear();
-				break;
 			case 'r':
-			case 'R':
+			case 'R': // Set red color.
 				writeColor(255,0,0);
 				updateLED();
 				break;
 			case 'g':
-			case 'G':
+			case 'G': // Set green color.
 				writeColor(0,255,0);
 				updateLED();
 				break;
 			case 'c':
-			case 'C':
+			case 'C': // Print colors in matrix.
 				printColor(0);
 				printColor(1);
 				printColor(2);
 				printColor(3);
 				break;
+			case 's':
+			case 'S': // Get color from sensor, set it, and update the LED.
+				getColor();
+				updateLED();
+				break;
+			default: // Echoes chars.
+				usart_prints("Echo; ");
+				usart_putc(c);
+				usart_prints("\r\n");
+				usart_clear();
+				break;
 			}
-			
 		}
+
 		if (buttonState == 0x01) {
-			usart_prints("\tPush Detected\r\n");
+			usart_prints("\tButton pushed.\r\n");
 			getColor();
 			updateLED();
 		}
@@ -109,6 +129,7 @@ void writeColor(uint8_t red, uint8_t green, uint8_t blue) {
 //Complete function for reading color data in from the sensor and writing it into the buffer with the writeColor method.
 void getColor(void) {
 	uint8_t r = 0, g = 0, b = 0;
+	_delay_ms(1000); // For the sensor???
 	i2c_start(SENSOR_ADDR+I2C_WRITE);
 	i2c_write(0x00);
 	i2c_write(0x01); //Turn on the color sensor.

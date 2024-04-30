@@ -1,6 +1,9 @@
+#ifndef _USART_H
+#define _USART_H
 /**
- * # HI
- * usart related funcs stolen from uiowa s2024 ece3360 lab6 code.
+ * # usart.h
+ * A collection of usart-related methods. Not sure who the original author is.
+ * Stolen from UIowa's S2024 ECE3360 Lab 6 code.
  */
 #include <avr/pgmspace.h>
 #include <avr/interrupt.h>
@@ -136,3 +139,5 @@ unsigned char uart_buffer_empty(void)
   
    return (rx_buffer_tail == rx_buffer_head);
 }
+
+#endif
