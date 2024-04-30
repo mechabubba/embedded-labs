@@ -9,13 +9,14 @@
 #define F_CPU 16000000UL    // 16 MHz clock speed.
 #endif
 
+#include <stdio.h>
 #include <avr/io.h>
 #include "i2cmaster.h"
 #include "usart.h"
 
 //Preprocessor defines:
 #define SENSOR_ADDR 0x38 //May need to be shifted left 1 bit.
-#define LED_ADDR 0xE8
+#define LED_ADDR 0xE8 //Might need to be 0xEA instead. Depends on if we have a modela A or model C.
 //Oh whoops didn't think about that... We can only attach 1 LED display as the 2 displays (probably) share the same I2C address.
 //If one of them is a KTD2502A/KTD2502B and the other is a KTD2502C/KTD2502D, then they would have different addresses.
 
@@ -31,6 +32,7 @@ uint8_t buttonState = 0; //Weird state-control button system we have used before
 void writeColor(uint8_t red, uint8_t green, uint8_t blue);
 void getColor(void);
 void updateLED(void);
+void printColor(uint8_t index);
 uint8_t checkButton(void);
 
 int main(void)
@@ -46,6 +48,11 @@ int main(void)
 	i2c_start(SENSOR_ADDR+I2C_WRITE);
 	i2c_write(0x00);
 	i2c_write(0x01); //Tell the color sensor to turn on.
+	i2c_stop();
+	
+	i2c_start(LED_ADDR+I2C_WRITE);
+	i2c_write(0x02);
+	i2c_write(0x80); //Turn the LED on. IDK if this will fix it, probably not but what can I do
 	i2c_stop();
 
 	//Main loop:
@@ -73,21 +80,10 @@ int main(void)
 				break;
 			case 'c':
 			case 'C':
-				usart_prints("Color 1: ");
-				usart_prints(redVals[0]);
-				usart_prints(", ");
-				usart_prints(greenVals[0]);
-				usart_prints(", ");
-				usart_prints(blueVals[0]);
-				usart_prints("\r\n");
-				usart_prints("Color 2: ");
-				usart_prints(redVals[1]);
-				usart_prints(", ");
-				usart_prints(greenVals[1]);
-				usart_prints(", ");
-				usart_prints(blueVals[1]);
-				usart_prints("\r\n");
-				
+				printColor(0);
+				printColor(1);
+				printColor(2);
+				printColor(3);
 				break;
 			}
 			
@@ -168,4 +164,12 @@ uint8_t checkButton(void) {
 		return 1;
 	}
 	else return 0;
+}
+
+void printColor(uint8_t index) {
+	char chBuffer[32]; //Just making sure the buffer will have enough space. 
+	//Including the null character, this should only be 25 chars, but it could theoretically go up to 27.
+	usart_prints("");
+	sprintf(chBuffer,"Color %i: %i, %i, %i\r\n",index + 1, redVals[index], greenVals[index], blueVals[index]);
+	usart_prints(chBuffer);
 }
