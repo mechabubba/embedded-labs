@@ -34,7 +34,7 @@ void writeColor(uint8_t red, uint8_t green, uint8_t blue);
 void getColor(void);
 void updateLED(void);
 void printColor(uint8_t index);
-uint8_t checkButton(void);
+void checkButton(void);
 
 int main(void)
 {
@@ -46,17 +46,24 @@ int main(void)
 	sei();
 	usart_prints("Starting.\r\n");
 	
-	// The below code works 1/10th of the time and I have absolutely zero clue why.
-	// Fuck.
-	//_delay_ms(1000); // For the sensor???
-	//char stat_sens = i2c_start(I2C_WRITE + SENSOR_ADDR);
-	//if (stat_sens) {
-	//	usart_prints("Failed to access sensor.\r\n");
-	//} else {
-	//	i2c_write(0x00); // 0x00 SYSM_CTRL
-	//	i2c_write(0x01); // Turn on color sens function.
-	//	i2c_stop();
-	//}
+	_delay_ms(100); // For the sensor???
+	
+	if (i2c_start(I2C_WRITE + SENSOR_ADDR)) {
+		usart_prints("Failed to access sensor.\r\n");
+	} else {
+		i2c_write(0x02); // 0x02 INT_FLAG
+		i2c_write(0x01); // Clear the power-on flag.
+		i2c_stop();
+	}
+	if (i2c_start(I2C_WRITE + SENSOR_ADDR)) {
+		usart_prints("Failed to access sensor.\r\n");
+	} else {
+		i2c_write(0x00); // 0x00 SYSM_CTRL
+		i2c_write(0x01); // Turn on color sens function.
+		i2c_write(0x00); // Turn off cls interrupt.
+		i2c_stop();
+	}
+	
 	
 	writeColor(255, 0, 255); // temp
 	char stat_led = i2c_start(I2C_WRITE + LED_ADDR);
@@ -68,15 +75,21 @@ int main(void)
 		i2c_stop();
 	}
 
-	usart_prints("Everything should be initiated...\r\n");
+	usart_prints("\tPress S to read in a color.\r\n");
+	usart_prints("\tPress C to print the stored colors.\r\n");
 
 	/* Main loop */
 	char c; //Input character
     while (1) {
-		//buttonState = (0x03 & (buttonState << 1)) | checkButton();
+		checkButton();
+		
 		if (!uart_buffer_empty()) {
 			c = usart_getc();
 			switch (c) {
+			case 'p':
+			case 'P':
+				usart_putc(buttonState + 0x61);
+				usart_putc('\r');
 			case 'r':
 			case 'R': // Set red color.
 				writeColor(255,0,0);
@@ -87,12 +100,18 @@ int main(void)
 				writeColor(0,255,0);
 				updateLED();
 				break;
+			case 'b':
+			case 'B': // Set green color.
+				writeColor(0,0,255);
+				updateLED();
+				break;
 			case 'c':
 			case 'C': // Print colors in matrix.
 				printColor(0);
 				printColor(1);
 				printColor(2);
 				printColor(3);
+				usart_prints("\r\n");
 				break;
 			case 's':
 			case 'S': // Get color from sensor, set it, and update the LED.
@@ -109,9 +128,7 @@ int main(void)
 		}
 
 		if (buttonState == 0x01) {
-			usart_prints("\tButton pushed.\r\n");
-			getColor();
-			updateLED();
+			usart_prints("Button pushed.\r\n");
 		}
     }
 }
@@ -121,22 +138,33 @@ void writeColor(uint8_t red, uint8_t green, uint8_t blue) {
 	redVals[cIndex] = red;
 	greenVals[cIndex] = green;
 	blueVals[cIndex] = blue;
-	cIndex = (cIndex >= 4) ? 0 : cIndex + 1; //Increment cIndex unless it is at (or above) 7, then set it to 0.
-	//cIndex will cycle forward through [0..7] before repeating.
+	cIndex++;
+	if (cIndex > 3) cIndex = 0;
+	//cIndex will cycle forward through [0..3] before repeating.
 }
 
 
 //Complete function for reading color data in from the sensor and writing it into the buffer with the writeColor method.
 void getColor(void) {
 	uint8_t r = 0, g = 0, b = 0;
-	_delay_ms(1000); // For the sensor???
-	i2c_start(SENSOR_ADDR+I2C_WRITE);
-	i2c_write(0x00);
-	i2c_write(0x01); //Turn on the color sensor.
-	i2c_stop();
 	
-	//Don't know if this is enough time to wait or not.
-	i2c_start(SENSOR_ADDR+I2C_WRITE);
+	usart_prints("Reading color values...\t");
+	
+	if (i2c_start(SENSOR_ADDR+I2C_WRITE)) { //Reading errors
+		usart_prints("Failed to contact sensor!\r\n");
+		return;
+	}
+	i2c_write(0x17); //Access the error register.
+	i2c_start(SENSOR_ADDR+I2C_READ);
+	if (i2c_readNak()) {
+		usart_prints("Color sensor error!\r\n");
+		return;
+	}
+	
+	if (i2c_start(SENSOR_ADDR+I2C_WRITE)) { //Reading colors
+		usart_prints("Failed to contact sensor!\r\n");
+		return;
+	}
 	i2c_write(0x1C); //Access the color buffer.
 	i2c_start(SENSOR_ADDR+I2C_READ);
 	i2c_readAck(); //Dump the lower 8 bits as we are only storing 8-bit color channels, not 16-bit.
@@ -146,16 +174,16 @@ void getColor(void) {
 	i2c_readAck();
 	b = i2c_readNak();
 	
-	i2c_start(SENSOR_ADDR+I2C_WRITE);
-	i2c_write(0x00);
-	i2c_write(0x00); //Turn off the color sensor.
-	i2c_stop();
+	usart_prints("Successful!\r\n");
 	
 	writeColor(r,g,b);
 }
 
 void updateLED(void) {
-	i2c_start(LED_ADDR+I2C_WRITE);
+	if (i2c_start(LED_ADDR+I2C_WRITE)) {
+		usart_prints("Failed to contact LED!\r\n");
+		return;
+	}
 	i2c_write(0x02);
 	i2c_write(0x00); //Turn off the LEDs while we are changing the values.
 	for (uint8_t i = 0; i < 4; i++) {
@@ -171,26 +199,20 @@ void updateLED(void) {
 	i2c_stop();
 }
 
-uint8_t checkButton(void) {
-	uint8_t acc = 127;
-	for (uint8_t i = 0; i < 25; i++) {
-		if ((PORTC >> PINC0) & 0x01) {
-			acc++;
-		} else {
-			acc--;
-		}
+void checkButton(void) {
+	uint8_t avg = 127; // pretend this is a signed int...
+	for (uint8_t i = 0; i < 11; i++) {
+		if (bit_is_clear(PINC, PINC0)) avg++;
+		else avg--;
 	}
-	if (acc > 127) {
-		usart_prints("push\r\n");
-		return 1;
-	}
-	else return 0;
+	buttonState <<= 1;
+	buttonState &= 0x02;
+	if (avg > 127) buttonState |= 0x01;
 }
 
 void printColor(uint8_t index) {
 	char chBuffer[32]; //Just making sure the buffer will have enough space. 
 	//Including the null character, this should only be 25 chars, but it could theoretically go up to 27.
-	usart_prints("");
 	sprintf(chBuffer,"Color %i: %i, %i, %i\r\n",index + 1, redVals[index], greenVals[index], blueVals[index]);
 	usart_prints(chBuffer);
 }
