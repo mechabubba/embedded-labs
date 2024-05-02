@@ -167,12 +167,17 @@ void getColor(void) {
 	}
 	i2c_write(0x1C); //Access the color buffer.
 	i2c_start(SENSOR_ADDR+I2C_READ);
-	i2c_readAck(); //Dump the lower 8 bits as we are only storing 8-bit color channels, not 16-bit.
+	//i2c_readAck();
 	r = i2c_readAck();
 	i2c_readAck();
 	g = i2c_readAck();
 	i2c_readAck();
 	b = i2c_readNak();
+	
+	// filtering.
+	if(r < 128) r = r * 2;  
+	if(g < 128) g = g * 2;
+	if(b < 128) b = b * 2;
 	
 	usart_prints("Successful!\r\n");
 	
